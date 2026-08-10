@@ -502,6 +502,84 @@ kbd {
   font-size: inherit;
 }
 
+.matcher-advanced {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(8, 13, 17, 0.4);
+}
+
+.matcher-advanced > summary {
+  min-height: 38px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.69rem;
+}
+
+.matcher-advanced > summary small {
+  color: var(--faint);
+  font-size: 0.58rem;
+}
+
+.matcher-advanced-grid {
+  margin: 0;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.matcher-advanced-grid legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.matcher-advanced-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.61rem;
+}
+
+.matcher-advanced-grid select {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 27px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--panel);
+  font-size: 0.66rem;
+}
+
+.matcher-advanced-grid select:hover,
+.matcher-advanced-grid select:focus {
+  border-color: var(--line-bright);
+}
+
+.matcher-evidence-note {
+  margin: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 0.58rem;
+  line-height: 1.45;
+}
+
+.matcher-evidence-note strong {
+  color: #a9c7d8;
+}
+
 .matcher-interpretation {
   min-width: 0;
   display: flex;
@@ -715,6 +793,99 @@ kbd {
   color: var(--faint);
   font-size: 0.56rem;
   line-height: 1.35;
+}
+
+.matcher-evidence {
+  margin: 0;
+  padding: 0 9px 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  color: var(--faint);
+  font-size: 0.53rem;
+}
+
+.matcher-evidence span {
+  padding: 2px 5px;
+  border: 1px solid rgba(91, 140, 164, 0.32);
+  border-radius: 999px;
+  background: rgba(91, 140, 164, 0.08);
+}
+
+.matcher-evidence .is-verified {
+  border-color: rgba(80, 185, 140, 0.42);
+  color: #9fd4bb;
+  background: rgba(80, 185, 140, 0.08);
+}
+
+.data-quality-summary {
+  margin: 0 0 10px;
+  padding: 9px 10px;
+  border-left: 2px solid var(--blue-bright);
+  color: #b7c6ce;
+  background: rgba(91, 140, 164, 0.07);
+  font-size: 0.67rem;
+  line-height: 1.45;
+}
+
+.evidence-profile-list,
+.source-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evidence-profile-list {
+  display: grid;
+  gap: 7px;
+}
+
+.evidence-profile-list li {
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.evidence-profile-list strong,
+.evidence-profile-list span,
+.evidence-profile-list small {
+  display: block;
+}
+
+.evidence-profile-list span {
+  margin-top: 2px;
+  color: #bdc9cf;
+}
+
+.evidence-profile-list small {
+  margin-top: 3px;
+  color: var(--faint);
+}
+
+.source-list {
+  margin-top: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.source-list a {
+  display: inline-flex;
+  min-height: 26px;
+  padding: 4px 7px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #9bc4da;
+  background: #10191f;
+  font-size: 0.58rem;
+  text-decoration: none;
+}
+
+.source-list a:hover {
+  border-color: var(--blue-bright);
+  color: #c9e6f5;
 }
 
 .matcher-exclude-button {
@@ -1920,6 +2091,10 @@ kbd {
     grid-template-columns: minmax(230px, 0.8fr) minmax(0, 1.2fr);
   }
 
+  .matcher-advanced-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
 }
 
 @media (max-width: 800px) {
@@ -1969,6 +2144,10 @@ kbd {
     text-align: left;
   }
 
+  .matcher-advanced-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .country-panel {
     height: auto;
     min-height: 540px;
@@ -2005,6 +2184,16 @@ kbd {
   }
 
   .matcher-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .matcher-advanced > summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .matcher-advanced-grid {
     grid-template-columns: 1fr;
   }
 

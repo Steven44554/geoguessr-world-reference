@@ -47,6 +47,14 @@
     matcherPlateColor: document.getElementById("matcherPlateColor"),
     matcherSurface: document.getElementById("matcherSurface"),
     matcherStopOnly: document.getElementById("matcherStopOnly"),
+    matcherStopText: document.getElementById("matcherStopText"),
+    matcherWarningSign: document.getElementById("matcherWarningSign"),
+    matcherPlateLayout: document.getElementById("matcherPlateLayout"),
+    matcherBollard: document.getElementById("matcherBollard"),
+    matcherPole: document.getElementById("matcherPole"),
+    matcherShoulder: document.getElementById("matcherShoulder"),
+    matcherSignBack: document.getElementById("matcherSignBack"),
+    matcherCamera: document.getElementById("matcherCamera"),
     stopOnlyFilterChip: document.getElementById("stopOnlyFilterChip"),
     matcherReset: document.getElementById("matcherReset"),
     matcherSummary: document.getElementById("matcherSummary"),
@@ -602,6 +610,8 @@
         JSON.stringify(country.geoGuessrClues),
         JSON.stringify(country.bollards),
         JSON.stringify(country.signs),
+        JSON.stringify(country.stopSign),
+        JSON.stringify(country.visualEvidence),
         JSON.stringify(country.utilityPoles),
         JSON.stringify(country.licensePlates),
         country.languages.join(" "),
@@ -674,6 +684,14 @@
     elements.matcherPlateColor,
     elements.matcherSurface,
     elements.matcherStopOnly,
+    elements.matcherStopText,
+    elements.matcherWarningSign,
+    elements.matcherPlateLayout,
+    elements.matcherBollard,
+    elements.matcherPole,
+    elements.matcherShoulder,
+    elements.matcherSignBack,
+    elements.matcherCamera,
   ].filter(Boolean);
 
   function readMatcherCriteria() {
@@ -686,6 +704,14 @@
       plateColor: elements.matcherPlateColor?.value || "",
       surface: elements.matcherSurface?.value || "",
       stopOnly: Boolean(elements.matcherStopOnly?.checked),
+      stopText: elements.matcherStopText?.value || "",
+      warningSign: elements.matcherWarningSign?.value || "",
+      plateLayout: elements.matcherPlateLayout?.value || "",
+      bollard: elements.matcherBollard?.value || "",
+      pole: elements.matcherPole?.value || "",
+      shoulder: elements.matcherShoulder?.value || "",
+      signBack: elements.matcherSignBack?.value || "",
+      camera: elements.matcherCamera?.value || "",
     };
   }
 
@@ -699,6 +725,116 @@
       allButton.classList.toggle("active", showAll);
       allButton.setAttribute("aria-pressed", String(showAll));
     }
+  }
+
+  const evidenceCriterionSpecs = [
+    { criterion: "warningSign", profile: "warningSign", label: "Warnschild" },
+    { criterion: "plateLayout", profile: "plateLayout", label: "Kennzeichenanordnung" },
+    { criterion: "bollard", profile: "bollard", label: "Leitpfosten" },
+    { criterion: "pole", profile: "pole", label: "Mastmaterial" },
+    { criterion: "shoulder", profile: "shoulder", label: "Straßenrand" },
+    { criterion: "signBack", profile: "signBack", label: "Schildrückseite" },
+    { criterion: "camera", profile: "camera", label: "Kameraposition" },
+  ];
+
+  const evidenceValueLabels = {
+    "diamond-yellow": "gelbe Raute",
+    "triangle-white": "weißes Dreieck mit rotem Rand",
+    "triangle-yellow": "gelbes Dreieck mit rotem Rand",
+    "white-white": "weiß vorn und hinten",
+    "white-yellow": "weiß vorn, gelb hinten",
+    "yellow-yellow": "gelb vorn und hinten",
+    "dark-dark": "dunkel vorn und hinten",
+    "white-black": "weiß mit schwarzem Feld",
+    "painted-black-white": "schwarz-weiß bemalt",
+    "black-yellow": "schwarz-gelbe Schutzobjekte",
+    wood: "Holzmasten",
+    concrete: "Betonmasten",
+    paved: "befestigte Schulter",
+    gravel: "Kies- oder Sandschulter",
+    none: "keine nutzbare Schulter",
+    drainage: "offene Betonrinne",
+    dark: "dunkle Schildrückseite",
+    low: "auffällig niedrige Kamera",
+  };
+
+  const evidenceProfileLabels = {
+    warningSign: "Warnschild-Grundform",
+    plateLayout: "Kennzeichen vorn / hinten",
+    bollard: "Leitpfosten-Muster",
+    pole: "Mastmaterial",
+    shoulder: "Straßenrand / Schulter",
+    signBack: "Schildrückseite",
+    camera: "Kamera-Hinweis",
+    stopSign: "Stoppschild-Text",
+    roadMarking: "Straßenmarkierung",
+  };
+
+  const confidenceLabels = {
+    high: "hoch",
+    medium: "mittel",
+    low: "niedrig",
+    unknown: "unbekannt",
+  };
+
+  function evidenceValueLabel(value) {
+    return evidenceValueLabels[value] || value;
+  }
+
+  function evaluateVisualEvidence(country, criteria) {
+    const outcome = {
+      selected: 0,
+      reliableMatches: 0,
+      score: 0,
+      uncertain: false,
+      excludedReason: "",
+      reasons: [],
+      sources: new Set(),
+      updatedAt: country.visualEvidence?.updatedAt || "",
+    };
+
+    evidenceCriterionSpecs.forEach((spec) => {
+      const selectedValue = criteria[spec.criterion];
+      if (!selectedValue || outcome.excludedReason) return;
+      outcome.selected += 1;
+      const profile = country.visualEvidence?.profiles?.[spec.profile];
+      if (!profile?.values?.length) {
+        outcome.uncertain = true;
+        outcome.reasons.push(`${spec.label} ist nicht sicher erfasst`);
+        return;
+      }
+      const matched = profile.values.includes(selectedValue);
+      const verified = profile.confidence === "high" && profile.sources?.length > 0;
+      if (matched) {
+        outcome.score += profile.confidence === "high" ? 20 : profile.confidence === "medium" ? 11 : 5;
+        profile.sources?.forEach((source) => outcome.sources.add(source));
+        if (verified) outcome.reliableMatches += 1;
+        else outcome.uncertain = true;
+        outcome.reasons.push(`${spec.label} passt${verified ? " (amtlich belegt)" : " als Zusatzhinweis"}`);
+      } else if (verified && profile.exclusion === "strong") {
+        outcome.excludedReason = `${spec.label} weicht vom belegten nationalen Grundtyp ab`;
+      } else {
+        outcome.uncertain = true;
+        outcome.score -= profile.confidence === "high" ? 4 : 2;
+        outcome.reasons.push(`${spec.label} kann regional oder nach Fahrzeugklasse abweichen`);
+      }
+    });
+
+    return outcome;
+  }
+
+  function stopTextMatches(profile, value) {
+    const text = `${profile?.displayedText || ""}`.toLocaleLowerCase("de");
+    if (value === "alto") return text.includes("alto");
+    if (value === "pare") return text.includes("pare");
+    if (value === "berhenti") return text.includes("berhenti");
+    if (value === "tomare-stop") return text.includes("止まれ");
+    return false;
+  }
+
+  function stopTextLabel(value) {
+    if (value === "tomare-stop") return "止まれ beziehungsweise 止まれ + STOP";
+    return value.toLocaleUpperCase("de");
   }
 
   function hasMatcherCriteria(criteria) {
@@ -916,6 +1052,8 @@
     let uncertain = false;
     let excludedReason = "";
     let roadMatched = false;
+    const evidenceSources = new Set();
+    let evidenceUpdatedAt = country.visualEvidence?.updatedAt || country.stopSign?.updatedAt || "";
 
     if (criteria.traffic) {
       if (country.traffic === criteria.traffic) {
@@ -936,6 +1074,7 @@
         score += roadResult.count * 14 + (roadResult.reliable ? 12 : 2);
         if (roadResult.reliable) reliableMatches += roadResult.count;
         else uncertain = true;
+        if (roadResult.reliable) country.roadVerification?.sources?.forEach((source) => evidenceSources.add(source));
         reasons.push(roadResult.reliable
           ? "Dokumentiertes Linienmuster passt"
           : "Linienmuster ist möglich, aber nicht vollständig belegt");
@@ -974,6 +1113,7 @@
       if (stopSign.format === "stop-only") {
         reliableMatches += 1;
         score += 24;
+        stopSign.sources?.forEach((source) => evidenceSources.add(source));
         reasons.push("STOP-Schild zeigt nur „STOP“");
       } else if (stopSign.format === "local-or-multilingual") {
         excludedReason = stopSign.exclusionReason || "Das übliche Stoppschild enthält eine andere Beschriftung";
@@ -983,6 +1123,35 @@
           ? "STOP-Schildtext ist regional unterschiedlich"
           : "STOP-Schildtext ist nicht sicher erfasst");
       }
+    }
+
+    if (!excludedReason && criteria.stopText) {
+      const stopSign = country.stopSign || { format: "unknown", confidence: "unknown", sources: [] };
+      if (stopTextMatches(stopSign, criteria.stopText)) {
+        const verified = stopSign.confidence === "high" && stopSign.sources?.length > 0;
+        score += verified ? 24 : 10;
+        if (verified) reliableMatches += 1;
+        else uncertain = true;
+        stopSign.sources?.forEach((source) => evidenceSources.add(source));
+        evidenceUpdatedAt = stopSign.updatedAt || evidenceUpdatedAt;
+        reasons.push(`Stoppschild-Text ${stopTextLabel(criteria.stopText)} passt${verified ? " (amtlich belegt)" : ""}`);
+      } else if (stopSign.confidence === "high" && stopSign.sources?.length && stopSign.format !== "variable") {
+        excludedReason = `Das belegte Stoppschild zeigt „${stopSign.displayedText}“`;
+      } else {
+        uncertain = true;
+        reasons.push("Stoppschild-Text ist nicht sicher oder regional einheitlich erfasst");
+      }
+    }
+
+    if (!excludedReason) {
+      const visualResult = evaluateVisualEvidence(country, criteria);
+      score += visualResult.score;
+      reliableMatches += visualResult.reliableMatches;
+      uncertain ||= visualResult.uncertain;
+      visualResult.reasons.forEach((reason) => reasons.push(reason));
+      visualResult.sources.forEach((source) => evidenceSources.add(source));
+      evidenceUpdatedAt = visualResult.updatedAt || evidenceUpdatedAt;
+      if (visualResult.excludedReason) excludedReason = visualResult.excludedReason;
     }
 
     if (state.matcher.manualExcluded.has(country.iso3)) {
@@ -996,6 +1165,11 @@
         reasons: [excludedReason],
         roadMatched: false,
         manual: state.matcher.manualExcluded.has(country.iso3),
+        verifiedMatches: reliableMatches,
+        selectedCount,
+        sourceCount: evidenceSources.size,
+        sources: [...evidenceSources],
+        updatedAt: evidenceUpdatedAt,
       };
     }
 
@@ -1006,6 +1180,11 @@
       reasons: reasons.length ? reasons : ["Keine widersprechenden Daten"],
       roadMatched,
       manual: false,
+      verifiedMatches: reliableMatches,
+      selectedCount,
+      sourceCount: evidenceSources.size,
+      sources: [...evidenceSources],
+      updatedAt: evidenceUpdatedAt,
     };
   }
 
@@ -1042,12 +1221,19 @@
     const cards = visible.map(({ country, result }) => {
       const bestClass = result.status === "match" ? " is-best-match" : "";
       const reason = result.reasons.slice(0, 2).join(" · ");
+      const quality = result.verifiedMatches > 0
+        ? '<span class="is-verified">' + result.verifiedMatches + "/" + result.selectedCount + ' belastbar</span>'
+        : '<span>Daten vorsichtig werten</span>';
+      const sources = result.sourceCount
+        ? '<span>' + result.sourceCount + (result.sourceCount === 1 ? ' Quelle' : ' Quellen') + '</span>'
+        : '';
       return '<article class="matcher-candidate-card ' + (result.status === "match" ? "is-match" : "is-possible") + bestClass + '" data-iso="' + country.iso3 + '">'
         + '<button class="matcher-result-button" type="button" data-matcher-open="' + country.iso3 + '">'
         + '<strong>' + flagEmoji(country.iso2) + " " + escapeHtml(country.name) + '</strong>'
         + '<span>' + country.iso3 + " · " + matcherStatusLabel(result.status) + '</span>'
         + '</button>'
         + '<p class="matcher-reason">' + escapeHtml(reason) + '</p>'
+        + '<p class="matcher-evidence">' + quality + sources + '</p>'
         + '<button class="matcher-exclude-button" type="button" data-matcher-exclude="' + country.iso3 + '">Ausschließen</button>'
         + '</article>';
     }).join("");
@@ -1374,6 +1560,64 @@
     }).join("")}</div>`;
   }
 
+  function renderDataQuality(country) {
+    const entries = [];
+    const sources = new Set();
+    const stopSign = country.stopSign;
+    if (stopSign && stopSign.confidence !== "unknown") {
+      stopSign.sources?.forEach((source) => sources.add(source));
+      entries.push({
+        key: "stopSign",
+        values: [stopSign.displayedText],
+        confidence: stopSign.confidence,
+        scope: stopSign.scope || "regional variabel",
+        note: stopSign.format === "variable" ? "Die Beschriftung ist regional nicht einheitlich." : "Amtlich dokumentierter Grundtyp.",
+        sources: stopSign.sources || [],
+      });
+    }
+    Object.entries(country.visualEvidence?.profiles || {}).forEach(([key, profile]) => {
+      profile.sources?.forEach((source) => sources.add(source));
+      entries.push({ key, ...profile });
+    });
+    if (country.roadVerification?.status === "cross-checked") {
+      country.roadVerification.sources?.forEach((source) => sources.add(source));
+      entries.push({
+        key: "roadMarking",
+        values: [roadPatternSummary(country)],
+        confidence: "high",
+        scope: country.roadMapPattern?.scope || "straßentypabhängig",
+        note: country.roadMapPattern?.notes || "Amtlich beziehungsweise quellenübergreifend geprüft.",
+        sources: country.roadVerification.sources || [],
+      });
+    }
+
+    if (!entries.length) {
+      return '<p class="data-quality-summary">Für dieses Land liegen noch keine einzeln strukturierten visuellen Belege vor. Es bleibt bei unklaren Filtern deshalb absichtlich „noch möglich“.</p>';
+    }
+
+    const verifiedCount = entries.filter((entry) => entry.confidence === "high" && entry.sources?.length).length;
+    const updatedAt = country.visualEvidence?.updatedAt || country.stopSign?.updatedAt || "nicht einzeln datiert";
+    const entryMarkup = entries.map((entry) => {
+      const values = entry.key === "stopSign" || entry.key === "roadMarking"
+        ? entry.values.join(" · ")
+        : entry.values.map(evidenceValueLabel).join(" · ");
+      return '<li><strong>' + escapeHtml(evidenceProfileLabels[entry.key] || entry.key) + '</strong>'
+        + '<span>' + escapeHtml(values) + '</span>'
+        + '<small>Zuverlässigkeit: ' + escapeHtml(confidenceLabels[entry.confidence] || entry.confidence)
+        + ' · ' + escapeHtml(entry.scope || "regional variabel") + ' · ' + escapeHtml(entry.note || "") + '</small></li>';
+    }).join("");
+    const sourceMarkup = [...sources]
+      .filter((source) => /^https:\/\/[^\s]+$/i.test(source))
+      .map((source, index) => '<li><a href="' + escapeHtml(source) + '" target="_blank" rel="noopener noreferrer">Quelle ' + (index + 1) + ' ↗</a></li>')
+      .join("");
+
+    return '<p class="data-quality-summary"><strong>' + verifiedCount + ' amtlich oder quellenübergreifend belegte Profile</strong>'
+      + ' · ' + sources.size + (sources.size === 1 ? ' Quelle' : ' Quellen')
+      + ' · Datenstand ' + escapeHtml(updatedAt) + '. Schwächere Beobachtungshinweise führen allein zu keinem harten Ausschluss.</p>'
+      + '<ul class="evidence-profile-list">' + entryMarkup + '</ul>'
+      + (sourceMarkup ? '<ul class="source-list" aria-label="Quellen">' + sourceMarkup + '</ul>' : '');
+  }
+
   function renderPanel(country) {
     const clues = [...country.geoGuessrClues].sort((a, b) => importanceOrder[a.importance] - importanceOrder[b.importance]);
     const roadStyles = country.roadStyles.length ? country.roadStyles : [{
@@ -1482,6 +1726,10 @@
             <details>
               <summary>GeoGuessr Meta</summary>
               <div class="details-content"><p>${escapeHtml(country.meta)}</p><p><strong>Hinweis:</strong> Meta kann sich mit neuer Abdeckung ändern und sollte nie einen widersprechenden realen Hinweis überstimmen.</p></div>
+            </details>
+            <details>
+              <summary>Datenqualität und Quellen</summary>
+              <div class="details-content">${renderDataQuality(country)}</div>
             </details>
             <details open>
               <summary>Oft verwechselt mit</summary>

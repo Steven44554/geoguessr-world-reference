@@ -119,6 +119,10 @@
         confidence: "unknown",
         sources: [],
       },
+      visualEvidence: {
+        updatedAt: "",
+        profiles: {},
+      },
       utilityPoles: { description: "Noch nicht verlässlich erfasst", importance: "LOW" },
       licensePlates: { description: "Noch nicht verlässlich erfasst", importance: "LOW" },
       languages: [],
@@ -1495,7 +1499,214 @@
   };
 
   Object.entries(verifiedStopSigns).forEach(([iso3, profile]) => {
-    if (countries[iso3]) countries[iso3].stopSign = profile;
+    if (countries[iso3]) {
+      countries[iso3].stopSign = {
+        ...profile,
+        updatedAt: "2026-08-10",
+        scope: profile.format === "variable" ? "regional variabel" : "nationaler Standard",
+      };
+    }
+  });
+
+  const visualEvidenceSources = {
+    uneceSigns: "https://unece.org/DAM/trans/conventn/Conv_road_signs_2006v_EN.pdf",
+    usaSigns: "https://mutcd.fhwa.dot.gov/pdfs/11th_Edition/mutcd11theditionhl.pdf",
+    canadaSigns: "https://www.ontario.ca/document/official-mto-drivers-handbook/signs",
+    mexicoSigns: "https://www.dof.gob.mx/2024/SICT/manual_de_senalizacion_carreteras.pdf",
+    brazilSigns: "https://www.gov.br/dnit/pt-br/rodovias/operacoes-rodoviarias/faixa-de-dominio/regulamentacao-atual/manual-de-sinalizacao-vertical-de-regulamentacao-contran/view",
+    argentinaSigns: "https://www.argentina.gob.ar/normativa/nacional/decreto-196-2025-410682/actualizacion",
+    chileSigns: "https://www.mtt.gob.cl/wp-content/uploads/2025/07/Manual-de-Senalizacion-de-Transito.pdf",
+    peruSigns: "https://cdn.www.gob.pe/uploads/document/file/7173778/6150395-manual-de-dispositivos-de-control-de-transito-automotor-rd-n-26-2024-mtc-18.pdf?v=1730902043",
+    colombiaSigns: "https://www.mindeporte.gov.co/recursos_user/2025/FOMENTO/Actividad_fisica/Manual_Senalizacion_Vial_Colombia_2024.pdf",
+    irelandSigns: "https://www.gov.ie/en/press-release/c26df-update-to-traffic-signs-manual-published/",
+    netherlandsSigns: "https://www.government.nl/documents/2024/02/09/road-traffic-signs-and-regulations-in-the-netherlands",
+    germanySigns: "https://www.gesetze-im-internet.de/stvo_2013/anlage_1.html",
+    swedenSigns: "https://www.transportstyrelsen.se/sv/vagtrafik/trafikregler-och-vagmarken/vagmarken/varningsmarken/",
+    ukSigns: "https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/782724/traffic-signs-manual-chapter-03.pdf",
+    australiaSigns: "https://www.qld.gov.au/transport/safety/signs/warning",
+    newZealandSigns: "https://www.nzta.govt.nz/driving-skills/learn-to-drive/roadcode/heavy-vehicle-road-code/road-code/about-signs/main-types-of-signs",
+    japanSigns: "https://www.npa.go.jp/english/bureau/traffic/traffic-light_english.pdf",
+    southernAfricaSigns: "https://www.transport.gov.za/wp-content/uploads/2023/02/V1C3.pdf",
+    malaysiaSigns: "https://epsmg.jkr.gov.my/images/6/6c/ATJ_2B.85_PINDAAN_2019_WM.pdf",
+    ukPlates: "https://www.gov.uk/displaying-number-plates/rules-number-plates",
+    netherlandsPlates: "https://www.rdw.nl/de-kentekenplaat/soorten-kentekenplaten",
+    luxembourgPlates: "https://guichet.public.lu/dam-assets/catalogue-pdf/transports-mobilite/plaque-selon-annee/plaque-immatriculation-selon-annee.pdf",
+    colombiaPlates: "https://mintransporte.gov.co/info/mintransporte/media/anexos/DFXjSale.pdf",
+  };
+
+  function addVisualEvidence(iso3List, key, values, options = {}) {
+    iso3List.forEach((iso3) => {
+      const country = countries[iso3];
+      if (!country) return;
+      country.visualEvidence.updatedAt = "2026-08-10";
+      country.visualEvidence.profiles[key] = {
+        values: [...new Set(values)],
+        confidence: options.confidence || "medium",
+        scope: options.scope || "häufiges Erscheinungsbild",
+        exclusion: options.exclusion || "soft",
+        note: options.note || "Regional und nach Straßentyp variabel.",
+        sources: [...new Set(options.sources || [])],
+      };
+    });
+  }
+
+  addVisualEvidence(["USA"], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Warnschilder sind grundsätzlich gelbe Rauten mit schwarzem Rand und Symbol.",
+    sources: [visualEvidenceSources.usaSigns],
+  });
+  addVisualEvidence(["CAN"], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "provinzübergreifender Grundtyp", exclusion: "strong",
+    note: "Gelbe Rauten sind der übliche kanadische Warnschild-Grundtyp; Provinzdetails variieren.",
+    sources: [visualEvidenceSources.canadaSigns],
+  });
+  [
+    ["MEX", visualEvidenceSources.mexicoSigns], ["BRA", visualEvidenceSources.brazilSigns],
+    ["ARG", visualEvidenceSources.argentinaSigns], ["CHL", visualEvidenceSources.chileSigns],
+    ["PER", visualEvidenceSources.peruSigns], ["COL", visualEvidenceSources.colombiaSigns],
+  ].forEach(([iso3, source]) => addVisualEvidence([iso3], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Gelbe rautenförmige Warnschilder sind amtlich dokumentiert.", sources: [source],
+  }));
+  addVisualEvidence(["URY", "BOL", "ECU"], "warningSign", ["diamond-yellow"], {
+    confidence: "medium", note: "Lateinamerikanischer Rautengrundtyp; lokale Ausführung und Zustand variieren.",
+  });
+  addVisualEvidence(["IRL"], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Irland nutzt gelbe Warnrauten und unterscheidet sich damit deutlich vom britischen Dreieckssystem.",
+    sources: [visualEvidenceSources.irelandSigns],
+  });
+  addVisualEvidence(["AUS"], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "nationaler Grundtyp", exclusion: "strong",
+    note: "Dauerhafte Warnschilder sind überwiegend gelbe Rauten mit schwarzen Symbolen.",
+    sources: [visualEvidenceSources.australiaSigns],
+  });
+  addVisualEvidence(["NZL"], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Dauerhafte Warnschilder sind gelb-schwarze Rauten.", sources: [visualEvidenceSources.newZealandSigns],
+  });
+  addVisualEvidence(["JPN"], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Japanische Warnschilder sind überwiegend gelbe Rauten mit schwarzem Symbol.",
+    sources: [visualEvidenceSources.japanSigns],
+  });
+  addVisualEvidence(["MYS"], "warningSign", ["diamond-yellow"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Warn- und Gefahrenschilder sind grundsätzlich gelbe Rauten mit schwarzen Symbolen.",
+    sources: [visualEvidenceSources.malaysiaSigns],
+  });
+  addVisualEvidence(["THA", "IDN", "PHL"], "warningSign", ["diamond-yellow"], {
+    confidence: "medium", note: "Gelbe Warnrauten sind häufig; Sonder- und Baustellenschilder können abweichen.",
+  });
+  addVisualEvidence(["ZAF"], "warningSign", ["triangle-white"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Permanente Warnschilder besitzen ein weißes Dreiecksfeld mit rotem Rand.",
+    sources: [visualEvidenceSources.southernAfricaSigns],
+  });
+  addVisualEvidence(["BWA", "LSO", "SWZ", "NAM"], "warningSign", ["triangle-white"], {
+    confidence: "medium", scope: "SADC-Grundsystem",
+    note: "Das südafrikanisch geprägte SADC-System nutzt überwiegend weiße Warndreiecke mit rotem Rand.",
+    sources: [visualEvidenceSources.southernAfricaSigns],
+  });
+  addVisualEvidence(["GBR"], "warningSign", ["triangle-white"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Britische Warnschilder sind überwiegend weiße Dreiecke mit rotem Rand.",
+    sources: [visualEvidenceSources.ukSigns],
+  });
+  addVisualEvidence(["NLD"], "warningSign", ["triangle-white"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Das niederländische Regelwerk nutzt den europäischen weißen Warndreieck-Grundtyp.",
+    sources: [visualEvidenceSources.netherlandsSigns],
+  });
+  addVisualEvidence(["DEU"], "warningSign", ["triangle-white"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Gefahrzeichen sind weiße Dreiecke mit rotem Rand.", sources: [visualEvidenceSources.germanySigns],
+  });
+  addVisualEvidence(["SWE"], "warningSign", ["triangle-yellow"], {
+    confidence: "high", scope: "nationaler Standard", exclusion: "strong",
+    note: "Schwedische Warnschilder besitzen ein gelbes Feld mit rotem Rand.",
+    sources: [visualEvidenceSources.swedenSigns],
+  });
+  addVisualEvidence(["FIN", "ISL", "POL"], "warningSign", ["triangle-yellow"], {
+    confidence: "medium", note: "Gelbes Warndreieck mit rotem Rand; temporäre und einzelne Sonderzeichen können abweichen.",
+  });
+  addVisualEvidence(["NOR", "DNK", "ESP", "PRT", "FRA", "BEL", "LUX", "CZE", "SVK", "HUN", "ROU", "BGR", "SRB", "HRV", "SVN", "MNE", "MKD", "ALB", "GRC", "TUR"], "warningSign", ["triangle-white"], {
+    confidence: "medium", scope: "nationaler europäischer Grundtyp",
+    note: "Weißes Warndreieck mit rotem Rand; Farbe und Symbolausführung können national variieren.",
+    sources: [visualEvidenceSources.uneceSigns],
+  });
+
+  addVisualEvidence(["GBR"], "plateLayout", ["white-yellow"], {
+    confidence: "high", scope: "normales Privatfahrzeug", exclusion: "strong",
+    note: "Vorn weiß, hinten gelb.", sources: [visualEvidenceSources.ukPlates],
+  });
+  addVisualEvidence(["NLD"], "plateLayout", ["yellow-yellow"], {
+    confidence: "high", scope: "normales Privatfahrzeug", exclusion: "strong",
+    note: "Vorn und hinten gelbe reflektierende Platten.", sources: [visualEvidenceSources.netherlandsPlates],
+  });
+  addVisualEvidence(["LUX"], "plateLayout", ["yellow-yellow"], {
+    confidence: "high", scope: "normales Privatfahrzeug", exclusion: "strong",
+    note: "Vorn und hinten gelbe Platten.", sources: [visualEvidenceSources.luxembourgPlates],
+  });
+  addVisualEvidence(["COL"], "plateLayout", ["yellow-yellow"], {
+    confidence: "high", scope: "normales Privatfahrzeug", exclusion: "strong",
+    note: "Vorn und hinten gelbe Platten mit dunklen Zeichen.", sources: [visualEvidenceSources.colombiaPlates],
+  });
+  addVisualEvidence(["BWA"], "plateLayout", ["white-yellow"], {
+    confidence: "medium", scope: "normales Privatfahrzeug", note: "Vorn weiß, hinten gelb.",
+  });
+  addVisualEvidence(["NAM"], "plateLayout", ["yellow-yellow"], {
+    confidence: "medium", scope: "normales Privatfahrzeug", note: "Vorn und hinten reflektierend gelb.",
+  });
+  addVisualEvidence(["MYS"], "plateLayout", ["dark-dark"], {
+    confidence: "medium", scope: "normales Privatfahrzeug", note: "Schwarzer Grund mit hellen Zeichen ist charakteristisch.",
+  });
+  addVisualEvidence(["IDN"], "plateLayout", ["dark-dark", "white-white"], {
+    confidence: "medium", scope: "Übergang nach Ausgabejahr", note: "Ältere schwarze und seit 2022 neue weiße Privatplatten kommen parallel vor.",
+  });
+  addVisualEvidence(["JPN"], "plateLayout", ["white-white", "yellow-yellow"], {
+    confidence: "medium", scope: "fahrzeugklassenabhängig", note: "Weiße Standard- und gelbe Kei-Car-Platten kommen vor.",
+  });
+  addVisualEvidence(["ZAF", "LSO", "SWE", "FIN", "ISL", "DNK", "USA", "CAN", "MEX", "BRA", "ARG", "URY", "CHL", "PER", "BOL", "ECU", "AUS", "NZL", "KOR", "THA", "PHL", "IRL", "ESP", "PRT", "FRA", "DEU", "BEL", "POL", "CZE", "SVK", "HUN", "ROU", "BGR", "SRB", "HRV", "SVN", "MNE", "MKD", "ALB", "GRC", "TUR"], "plateLayout", ["white-white"], {
+    confidence: "medium", scope: "häufigstes Privatfahrzeugformat", note: "Überwiegend helle Platten vorn und hinten; Sonderklassen und historische Formate bleiben möglich.",
+  });
+
+  addVisualEvidence(["NOR", "SWE", "FIN", "DNK", "DEU", "ESP", "CZE", "SVK", "IRL", "NZL", "ARG", "URY", "CHL"], "bollard", ["white-black"], {
+    confidence: "medium", exclusion: "soft", note: "Weiße Leitpfosten mit dunklem Feld sind häufig; Form und Reflektor müssen gemeinsam bewertet werden.",
+  });
+  addVisualEvidence(["PER", "BOL", "THA", "MYS", "IDN", "PHL"], "bollard", ["painted-black-white"], {
+    confidence: "low", exclusion: "soft", note: "Schwarz-weiß bemalte Pfosten, Sockel oder Brückenkanten sind ein ergänzender Regionalhinweis.",
+  });
+  addVisualEvidence(["JPN", "KOR"], "bollard", ["black-yellow"], {
+    confidence: "low", exclusion: "soft", note: "Schwarz-gelbe Schutzobjekte und flexible Poller kommen häufig vor, sind aber nicht exklusiv.",
+  });
+
+  addVisualEvidence(["USA", "CAN", "ZAF", "BWA", "SWZ", "NOR", "SWE", "FIN", "GBR", "IRL", "ARG", "URY", "CHL", "AUS", "NZL"], "pole", ["wood"], {
+    confidence: "low", exclusion: "soft", note: "Holzmasten sind in ländlichen Räumen häufig, aber regional nicht exklusiv.",
+  });
+  addVisualEvidence(["MEX", "BRA", "PER", "BOL", "ECU", "COL", "JPN", "KOR", "THA", "MYS", "IDN", "PHL", "BEL", "ROU"], "pole", ["concrete"], {
+    confidence: "low", exclusion: "soft", note: "Betonmasten sind häufig; Lochung, Querarme und Verkabelung liefern die stärkeren Details.",
+  });
+
+  addVisualEvidence(["USA", "CAN", "THA", "AUS"], "shoulder", ["paved"], {
+    confidence: "medium", exclusion: "soft", note: "Befestigte Schultern sind auf größeren Hauptstraßen häufig; Nebenstraßen können stark abweichen.",
+  });
+  addVisualEvidence(["BWA", "NAM", "ARG", "URY", "ISL", "AUS", "NZL"], "shoulder", ["gravel"], {
+    confidence: "medium", exclusion: "soft", note: "Kiesige oder sandige Schultern sind auf vielen Landstraßen häufig.",
+  });
+  addVisualEvidence(["GBR", "LSO", "NOR", "JPN", "MEX", "PER", "BOL", "IDN"], "shoulder", ["none"], {
+    confidence: "medium", exclusion: "soft", note: "Viele schmale Straßen besitzen keine nutzbare befestigte Schulter.",
+  });
+  addVisualEvidence(["JPN", "KOR", "MYS", "IDN", "PHL", "ECU", "COL"], "shoulder", ["drainage"], {
+    confidence: "medium", exclusion: "soft", note: "Offene oder betonierte Entwässerungsrinnen prägen viele Straßenränder.",
+  });
+
+  addVisualEvidence(["BRA"], "signBack", ["dark"], {
+    confidence: "medium", exclusion: "soft", note: "Dunkle oder schwarze Schildrückseiten sind ein nützlicher, aber nicht universaler Brasilien-Hinweis.",
+  });
+  addVisualEvidence(["JPN"], "camera", ["low"], {
+    confidence: "medium", scope: "offizielle Street-View-Aufnahmen", exclusion: "soft",
+    note: "Die niedrige Kameraposition ist ein stabiler Zusatzhinweis; Abdeckung und Aufnahmegeneration können sich ändern.",
   });
 
   window.COUNTRIES = countries;

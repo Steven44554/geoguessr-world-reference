@@ -179,6 +179,7 @@ const requiredIds = [
   "matcherButton", "roadMatcher", "roadScreenshot", "matcherPreview", "matcherPreviewImage", "removeScreenshot",
   "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle",
   "matcherPlateColor", "matcherSurface", "matcherStopOnly", "stopOnlyFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
+  "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
   "matcherExcludedSummary",
 ];
 const nodesById = new Map(requiredIds.map((id) => [id, new TestNode("div", id)]));
@@ -210,6 +211,7 @@ for (const classes of [
 }
 const matcherSelectIds = [
   "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle", "matcherPlateColor", "matcherSurface",
+  "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
 ];
 const documentListeners = {};
 const document = {
@@ -221,6 +223,9 @@ const document = {
     const matches = [];
     if (requestedSelectors.includes(".matcher-observations select")) {
       matches.push(...matcherSelectIds.map((id) => nodesById.get(id)));
+    }
+    if (requestedSelectors.includes(".matcher-advanced select")) {
+      matches.push(...matcherSelectIds.slice(7).map((id) => nodesById.get(id)));
     }
     if (requestedSelectors.some((part) => [
       ".matcher-observations input",
@@ -379,6 +384,10 @@ japanBrowserCountry.dataset.selectCountry = "JPN";
 document.dispatchEvent({ type: "click", target: japanBrowserCountry });
 assertPanelCountry("JPN", "Japan");
 assert(countryShape("JPN").classList.contains("is-selected"), "Country selected through the browser must be highlighted");
+const japanPanelMarkup = nodesById.get("countryPanel").innerHTML;
+assert(/Datenqualität und Quellen/.test(japanPanelMarkup), "Selected-country panel must expose data quality and sources");
+assert(/Zuverlässigkeit/.test(japanPanelMarkup) && /Quelle 1/.test(japanPanelMarkup), "Country data-quality panel must label confidence and at least one source");
+assert(/target="_blank" rel="noopener noreferrer"/.test(japanPanelMarkup), "Country source links must open safely in a new tab");
 assert(!netherlandsPath.classList.contains("is-selected"), "Previous map selection must be cleared after browser selection");
 assert(!nodesById.get("countryBrowser").classList.contains("open"), "Country browser must close after selecting a country");
 
@@ -463,7 +472,7 @@ assert(countryShape("ZAF").classList.contains("is-matcher-excluded"), "A restore
 
 const selectedBeforeMatcherReset = nodesById.get("worldMap").classList.contains("has-selection");
 fire("matcherReset", "click");
-for (const id of ["matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle", "matcherPlateColor", "matcherSurface"]) {
+for (const id of matcherSelectIds) {
   assert(nodesById.get(id).value === "", `Matcher reset must clear ${id}`);
 }
 for (const layer of [paths, borders, overlays]) {
@@ -505,6 +514,45 @@ fire("matcherReset", "click");
 assert(stopOnlyCheckbox.checked === false, "Matcher reset must disable the STOP-only checkbox");
 assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Matcher reset must keep the main STOP-only filter chip synchronized");
 
+setMatcherValue("matcherStopText", "pare");
+assert(hasMatcherResultClass(countryShape("BRA")) && !countryShape("BRA").classList.contains("is-matcher-excluded"), "PARE must retain Brazil as a sourced stop-sign candidate");
+assert(countryShape("MEX").classList.contains("is-matcher-excluded"), "PARE must exclude Mexico's sourced ALTO sign");
+assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), "Unknown stop-sign data must stay possible for a PARE observation");
+assert(/BRA/.test(nodesById.get("matcherCandidates").innerHTML) && /belastbar/.test(nodesById.get("matcherCandidates").innerHTML), "PARE results must show Brazil with an evidence-quality badge");
+fire("matcherReset", "click");
+
+setMatcherValue("matcherWarningSign", "diamond-yellow");
+assert(hasMatcherResultClass(countryShape("USA")) && !countryShape("USA").classList.contains("is-matcher-excluded"), "A yellow warning diamond must retain the sourced USA profile");
+assert(countryShape("GBR").classList.contains("is-matcher-excluded"), "A yellow warning diamond must exclude Great Britain's sourced white-triangle standard");
+assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), "Missing warning-sign data must remain possible");
+assert(/amtlich belegt/.test(nodesById.get("matcherCandidates").innerHTML) && /Quelle/.test(nodesById.get("matcherCandidates").innerHTML), "Verified visual matches must show evidence and source indicators");
+fire("matcherReset", "click");
+
+setMatcherValue("matcherWarningSign", "triangle-yellow");
+assert(hasMatcherResultClass(countryShape("SWE")) && !countryShape("SWE").classList.contains("is-matcher-excluded"), "A yellow warning triangle must retain Sweden");
+assert(countryShape("USA").classList.contains("is-matcher-excluded"), "A yellow warning triangle must exclude the USA's sourced yellow-diamond standard");
+fire("matcherReset", "click");
+
+setMatcherValue("matcherPlateLayout", "white-yellow");
+assert(hasMatcherResultClass(countryShape("GBR")) && !countryShape("GBR").classList.contains("is-matcher-excluded"), "White-front/yellow-rear plates must retain Great Britain");
+assert(countryShape("NLD").classList.contains("is-matcher-excluded"), "White-front/yellow-rear plates must exclude the Netherlands' sourced yellow/yellow layout");
+assert(hasMatcherResultClass(countryShape("BWA")) && !countryShape("BWA").classList.contains("is-matcher-excluded"), "Botswana's medium-confidence white/yellow layout must stay possible");
+fire("matcherReset", "click");
+
+for (const [control, value, expectedIso] of [
+  ["matcherBollard", "white-black", "DEU"],
+  ["matcherPole", "concrete", "JPN"],
+  ["matcherShoulder", "drainage", "JPN"],
+  ["matcherSignBack", "dark", "BRA"],
+  ["matcherCamera", "low", "JPN"],
+]) {
+  setMatcherValue(control, value);
+  assert(hasMatcherResultClass(countryShape(expectedIso)) && !countryShape(expectedIso).classList.contains("is-matcher-excluded"), `${control} must retain its documented example country`);
+  assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), `${control} must not hard-exclude a country with unknown data`);
+  assert(!countryShape("USA").classList.contains("is-matcher-excluded") || expectedIso === "USA", `${control} must remain a soft clue instead of hard-excluding the USA`);
+  fire("matcherReset", "click");
+}
+
 setMatcherValue("matcherSurface", "unpaved");
 assert(hasMatcherResultClass(countryShape("BOL")), "An unpaved-road clue must retain Bolivia through its documented surface profile");
 fire("matcherReset", "click");
@@ -544,5 +592,8 @@ console.log(JSON.stringify({
   matcherPlateBackgrounds: true,
   matcherStopSignText: true,
   matcherStopMainFilterSync: true,
+  matcherExpandedVisualFilters: true,
+  matcherEvidenceConservativeExclusion: true,
+  countryPanelEvidenceSources: true,
   matcherResetPreservesSelection: true,
 }, null, 2));

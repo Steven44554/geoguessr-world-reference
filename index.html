@@ -164,6 +164,79 @@
             </div>
           </div>
 
+          <details class="matcher-advanced" open>
+            <summary>
+              <span>Weitere visuelle Hinweise</span>
+              <small>Schilder · Kennzeichen · Leitpfosten · Straßenrand · Kamera</small>
+            </summary>
+            <fieldset class="matcher-advanced-grid">
+              <legend>Weitere sichtbare Merkmale</legend>
+              <label>Anderer Stoppschild-Text
+                <select id="matcherStopText">
+                  <option value="">Beliebig</option>
+                  <option value="alto">ALTO</option>
+                  <option value="pare">PARE</option>
+                  <option value="berhenti">BERHENTI</option>
+                  <option value="tomare-stop">止まれ oder 止まれ + STOP</option>
+                </select>
+              </label>
+              <label>Warnschild-Grundform
+                <select id="matcherWarningSign">
+                  <option value="">Beliebig</option>
+                  <option value="diamond-yellow">Gelbe Raute</option>
+                  <option value="triangle-white">Weißes Dreieck, roter Rand</option>
+                  <option value="triangle-yellow">Gelbes Dreieck, roter Rand</option>
+                </select>
+              </label>
+              <label>Kennzeichen vorn / hinten
+                <select id="matcherPlateLayout">
+                  <option value="">Beliebig</option>
+                  <option value="white-white">Weiß / weiß</option>
+                  <option value="white-yellow">Weiß / gelb</option>
+                  <option value="yellow-yellow">Gelb / gelb</option>
+                  <option value="dark-dark">Dunkel / dunkel</option>
+                </select>
+              </label>
+              <label>Leitpfosten-Muster
+                <select id="matcherBollard">
+                  <option value="">Beliebig</option>
+                  <option value="white-black">Weiß mit schwarzem Feld</option>
+                  <option value="painted-black-white">Schwarz-weiß bemalt</option>
+                  <option value="black-yellow">Schwarz-gelbe Schutzobjekte</option>
+                </select>
+              </label>
+              <label>Mastmaterial
+                <select id="matcherPole">
+                  <option value="">Beliebig</option>
+                  <option value="wood">Holzmasten</option>
+                  <option value="concrete">Betonmasten</option>
+                </select>
+              </label>
+              <label>Straßenrand / Schulter
+                <select id="matcherShoulder">
+                  <option value="">Beliebig</option>
+                  <option value="paved">Befestigte Schulter</option>
+                  <option value="gravel">Kies- oder Sandschulter</option>
+                  <option value="none">Keine nutzbare Schulter</option>
+                  <option value="drainage">Offene Betonrinne</option>
+                </select>
+              </label>
+              <label>Schildrückseite
+                <select id="matcherSignBack">
+                  <option value="">Beliebig</option>
+                  <option value="dark">Dunkel oder schwarz</option>
+                </select>
+              </label>
+              <label>Kamera-Hinweis
+                <select id="matcherCamera">
+                  <option value="">Beliebig</option>
+                  <option value="low">Auffällig niedrige Kamera</option>
+                </select>
+              </label>
+            </fieldset>
+            <p class="matcher-evidence-note"><strong>Konservative Auswertung:</strong> Amtlich belegte Widersprüche können Länder ausschließen. Regionale oder beobachtungsabhängige Hinweise verändern nur die Reihenfolge; fehlende Daten bleiben „noch möglich“.</p>
+          </details>
+
           <div class="matcher-results" aria-labelledby="matcherResultsTitle">
             <div class="matcher-results-heading">
               <h3 id="matcherResultsTitle">Mögliche Länder</h3>
