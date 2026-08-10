@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Lokaler interaktiver GeoGuessr-Länderatlas mit Straßenhinweisen und Direktvergleich.">
+    <title>GeoGuessr World Reference Atlas</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-block">
+        <span class="eyebrow">OFFLINE-FELDATLAS</span>
+        <h1>GeoGuessr World Reference</h1>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="map-column" aria-label="Interaktive Weltkarte">
+        <div class="command-bar">
+          <label class="search-field" for="searchInput">
+            <span aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search" autocomplete="off" placeholder="Land oder Hinweis suchen, z. B. „gelbe Außenlinie“">
+            <kbd>Strg K</kbd>
+          </label>
+          <button id="matcherButton" class="secondary-button matcher-toggle" type="button" aria-expanded="false" aria-controls="roadMatcher">Straßen-Screenshot</button>
+          <button id="browserButton" class="secondary-button" type="button" aria-expanded="false" aria-controls="countryBrowser">Länderbrowser</button>
+          <button id="compareButton" class="primary-button" type="button">Vergleichen <span id="compareCount">0</span></button>
+        </div>
+
+        <div id="searchSummary" class="search-summary" aria-live="polite">Alle Länder werden angezeigt.</div>
+
+        <div id="filters" class="filter-strip" aria-label="Kartenfilter">
+          <button class="filter-chip active" type="button" data-filter="all" aria-pressed="true">Alle</button>
+          <button id="stopOnlyFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-only aria-controls="matcherStopOnly" aria-pressed="false" title="Stoppschild zeigt ausschließlich STOP und keine weitere Sprache">🛑 STOP-Schild: nur „STOP“</button>
+          <button class="filter-chip" type="button" data-filter="traffic:left" aria-pressed="false">Linksverkehr</button>
+          <button class="filter-chip" type="button" data-filter="traffic:right" aria-pressed="false">Rechtsverkehr</button>
+          <button class="filter-chip" type="button" data-filter="center:gelb" aria-pressed="false">Gelbe Mittellinie</button>
+          <button class="filter-chip" type="button" data-filter="center:weiß" aria-pressed="false">Weiße Mittellinie</button>
+          <button class="filter-chip" type="button" data-filter="edge:gelb" aria-pressed="false">Gelbe Randlinie</button>
+          <button class="filter-chip" type="button" data-filter="plates:gelb" aria-pressed="false">Gelbe Kennzeichen</button>
+          <button class="filter-chip" type="button" data-filter="terrain:trop" aria-pressed="false">Tropisch</button>
+          <button class="filter-chip" type="button" data-filter="terrain:wüste" aria-pressed="false">Wüste</button>
+          <button class="filter-chip" type="button" data-filter="terrain:berg" aria-pressed="false">Gebirgig</button>
+          <button class="filter-chip" type="button" data-filter="continent:Europa" aria-pressed="false">Europa</button>
+          <button class="filter-chip" type="button" data-filter="continent:Afrika" aria-pressed="false">Afrika</button>
+          <button class="filter-chip" type="button" data-filter="continent:Asien" aria-pressed="false">Asien</button>
+          <button class="filter-chip" type="button" data-filter="continent:Nordamerika" aria-pressed="false">Nordamerika</button>
+          <button class="filter-chip" type="button" data-filter="continent:Südamerika" aria-pressed="false">Südamerika</button>
+          <button class="filter-chip" type="button" data-filter="continent:Ozeanien" aria-pressed="false">Ozeanien</button>
+          <button class="filter-chip" type="button" data-filter="favorites:true" aria-pressed="false">★ Favoriten</button>
+        </div>
+
+        <section id="roadMatcher" class="road-matcher" aria-hidden="true" aria-labelledby="matcherTitle">
+          <header class="matcher-header">
+            <div>
+              <span class="eyebrow">STRAẞEN-MATCHER</span>
+              <h2 id="matcherTitle">Straßen-Screenshot auswerten</h2>
+            </div>
+            <p>Der Screenshot bleibt lokal und wird nicht automatisch erkannt. Wähle nur sichtbare Merkmale aus; Straßentypen können innerhalb eines Landes variieren.</p>
+          </header>
+
+          <div class="matcher-workspace">
+            <div class="matcher-media">
+              <label class="matcher-upload" for="roadScreenshot">
+                <span class="matcher-upload-icon" aria-hidden="true">＋</span>
+                <strong>Screenshot auswählen</strong>
+                <small>PNG, JPG oder WebP · nur lokal</small>
+              </label>
+              <input id="roadScreenshot" class="visually-hidden" type="file" accept="image/*">
+              <div id="matcherPreview" class="matcher-image-preview" hidden>
+                <img id="matcherPreviewImage" alt="Lokale Vorschau des Straßen-Screenshots">
+                <button id="removeScreenshot" type="button">Bild entfernen</button>
+              </div>
+            </div>
+
+            <fieldset class="matcher-observations">
+              <legend>Sichtbare Merkmale</legend>
+              <label>Verkehrsseite
+                <select id="matcherTraffic">
+                  <option value="">Beliebig</option>
+                  <option value="left">Linksverkehr</option>
+                  <option value="right">Rechtsverkehr</option>
+                </select>
+              </label>
+              <label>Mittellinienfarbe
+                <select id="matcherCenterColor">
+                  <option value="">Beliebig</option>
+                  <option value="white">Weiß</option>
+                  <option value="yellow">Gelb</option>
+                  <option value="green">Grünes Mittelband</option>
+                  <option value="none">Keine Mittellinie</option>
+                </select>
+              </label>
+              <label>Mittellinienstil
+                <select id="matcherCenterStyle">
+                  <option value="">Beliebig</option>
+                  <option value="dashed">Gestrichelt</option>
+                  <option value="solid">Durchgezogen</option>
+                  <option value="double-solid">Doppelt durchgezogen</option>
+                  <option value="solid-dashed">Durchgezogen + gestrichelt</option>
+                  <option value="none">Keine Mittellinie</option>
+                </select>
+              </label>
+              <label>Randlinienfarbe
+                <select id="matcherEdgeColor">
+                  <option value="">Beliebig</option>
+                  <option value="white">Weiß</option>
+                  <option value="yellow">Gelb</option>
+                  <option value="none">Keine Randlinie</option>
+                </select>
+              </label>
+              <label>Randlinienstil
+                <select id="matcherEdgeStyle">
+                  <option value="">Beliebig</option>
+                  <option value="dashed">Gestrichelt</option>
+                  <option value="solid">Durchgezogen</option>
+                  <option value="double-solid">Doppelt durchgezogen</option>
+                  <option value="solid-dashed">Durchgezogen + gestrichelt</option>
+                  <option value="none">Keine Randlinie</option>
+                </select>
+              </label>
+              <label>Kennzeichenfarbe
+                <select id="matcherPlateColor">
+                  <option value="">Beliebig</option>
+                  <option value="yellow">Gelb</option>
+                  <option value="white">Weiß</option>
+                  <option value="dark">Dunkel</option>
+                </select>
+              </label>
+              <label>Straßenoberfläche
+                <select id="matcherSurface">
+                  <option value="">Beliebig</option>
+                  <option value="asphalt">Asphalt</option>
+                  <option value="concrete">Beton</option>
+                  <option value="gravel">Schotter</option>
+                  <option value="unpaved">Unbefestigt</option>
+                </select>
+              </label>
+              <label class="matcher-checkbox" for="matcherStopOnly">
+                <input id="matcherStopOnly" type="checkbox">
+                <span>STOP-Schild: nur „STOP“ <small>(keine weitere Sprache)</small></span>
+              </label>
+            </fieldset>
+
+            <div class="matcher-interpretation">
+              <div class="matcher-road-card">
+                <div class="matcher-card-heading">
+                  <span>LIVE-MINI-STRAẞE</span>
+                  <button id="matcherReset" type="button">Zurücksetzen</button>
+                </div>
+                <svg id="matcherRoadPreview" viewBox="0 0 300 118" role="img" aria-label="Vorschau der ausgewählten Straßenmerkmale">
+                  <rect class="matcher-preview-ground" width="300" height="118"></rect>
+                  <path class="matcher-preview-road" d="M32 118 L105 20 H195 L268 118 Z"></path>
+                  <path class="matcher-preview-edge left" d="M54 118 L116 20"></path>
+                  <path class="matcher-preview-edge right" d="M246 118 L184 20"></path>
+                  <path class="matcher-preview-band" d="M150 118 L150 20"></path>
+                  <path class="matcher-preview-center primary" d="M150 118 L150 20"></path>
+                  <path class="matcher-preview-center secondary" d="M155 118 L152 20"></path>
+                </svg>
+              </div>
+              <p id="matcherSummary" class="matcher-summary" aria-live="polite">Noch keine Merkmale ausgewählt. Alle Länder bleiben möglich.</p>
+            </div>
+          </div>
+
+          <div class="matcher-results" aria-labelledby="matcherResultsTitle">
+            <div class="matcher-results-heading">
+              <h3 id="matcherResultsTitle">Mögliche Länder</h3>
+              <span>„Passt gut“, „noch möglich“ oder „eher ausgeschlossen“ – ein Treffer öffnet das Länderprofil.</span>
+            </div>
+            <div id="matcherCandidates" class="matcher-candidates" aria-live="polite">
+              <p class="matcher-empty-result">Wähle oben Merkmale aus, um Länder ein- und auszuschließen.</p>
+            </div>
+            <div id="matcherExcludedSummary" class="matcher-excluded-summary">Noch keine Länder ausgeschlossen.</div>
+          </div>
+        </section>
+
+        <div class="map-card">
+          <div class="map-toolbar" aria-label="Kartensteuerung">
+            <button id="zoomIn" type="button" aria-label="Hineinzoomen">+</button>
+            <button id="zoomOut" type="button" aria-label="Herauszoomen">−</button>
+            <button id="resetZoom" type="button">Reset</button>
+          </div>
+          <svg id="worldMap" data-zoom-level="world" viewBox="0 0 1200 600" role="img" aria-labelledby="mapTitle mapDescription">
+            <title id="mapTitle">Interaktive Weltkarte nach Verkehrsseite</title>
+            <desc id="mapDescription">Blaue Länder haben Linksverkehr, rote Länder Rechtsverkehr. Kompakte, zugeschnittene Asphalt-Samples zeigen verifizierte weiße oder gelbe Rand- und Mittellinien abhängig von Landgröße und Zoomstufe. Jedes Land kann ausgewählt werden.</desc>
+            <defs id="countryClipPaths"></defs>
+            <rect class="ocean" width="1200" height="600"></rect>
+            <g id="graticule" aria-hidden="true"></g>
+            <g id="mapViewport">
+              <g id="countryPaths"></g>
+              <g id="roadLineOverlays" aria-hidden="true"></g>
+              <g id="countryBorders" aria-hidden="true"></g>
+              <g id="smallCountryMarkers"></g>
+            </g>
+          </svg>
+          <div class="map-legend" aria-label="Kartenlegende">
+            <div><span><i class="legend-dot left"></i>Linksverkehr</span><span><i class="legend-dot right"></i>Rechtsverkehr</span></div>
+            <div><span><i class="legend-line white solid"></i>weiß</span><span><i class="legend-line yellow solid"></i>gelb</span></div>
+            <div><span><i class="legend-line white dashed"></i>gestrichelt</span><span><i class="legend-line neutral solid"></i>durchgezogen</span></div>
+          </div>
+          <div class="map-hint">Mausrad: Zoom · Ziehen: Verschieben</div>
+          <div id="mapTooltip" class="map-tooltip" role="tooltip" hidden></div>
+        </div>
+
+        <aside id="countryBrowser" class="country-browser" aria-hidden="true">
+          <div class="browser-header">
+            <div>
+              <span class="eyebrow">SCHNELLZUGRIFF</span>
+              <h2>Länderbrowser</h2>
+            </div>
+            <button id="closeBrowser" class="icon-button" type="button" aria-label="Länderbrowser schließen">×</button>
+          </div>
+          <div class="browser-tabs" role="tablist" aria-label="Länder gruppieren">
+            <button type="button" class="browser-tab active" data-group="alphabet" role="tab" aria-selected="true">A–Z</button>
+            <button type="button" class="browser-tab" data-group="continent" role="tab" aria-selected="false">Kontinent</button>
+            <button type="button" class="browser-tab" data-group="traffic" role="tab" aria-selected="false">Verkehr</button>
+          </div>
+          <div id="browserList" class="browser-list"></div>
+        </aside>
+      </section>
+
+      <aside id="countryPanel" class="country-panel" aria-live="polite">
+        <div class="empty-state">
+          <span class="empty-compass">⌖</span>
+          <span class="eyebrow">BEREIT ZUR ANALYSE</span>
+          <h2>Wähle ein Land</h2>
+          <p>Klicke auf die Karte oder suche nach einem visuellen Hinweis. Straßen und stärkste GeoGuessr-Merkmale erscheinen hier zuerst.</p>
+          <div class="starter-actions">
+            <button type="button" data-select-country="ZAF">Südafrika öffnen</button>
+            <button type="button" data-select-country="NOR">Norwegen öffnen</button>
+            <button type="button" data-select-country="JPN">Japan öffnen</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <div id="comparisonModal" class="modal" hidden>
+      <div class="modal-backdrop" data-close-modal></div>
+      <section class="comparison-dialog" role="dialog" aria-modal="true" aria-labelledby="comparisonTitle">
+        <header class="comparison-header">
+          <div>
+            <span class="eyebrow">DIREKTVERGLEICH</span>
+            <h2 id="comparisonTitle">Länder auseinanderhalten</h2>
+          </div>
+          <button class="icon-button" type="button" data-close-modal aria-label="Vergleich schließen">×</button>
+        </header>
+        <div class="comparison-controls">
+          <label>Land 1<select id="compareSelect1"></select></label>
+          <label>Land 2<select id="compareSelect2"></select></label>
+          <label>Land 3 (optional)<select id="compareSelect3"></select></label>
+        </div>
+        <div class="preset-row" aria-label="Vergleichsvorlagen">
+          <button type="button" data-preset="ZAF,BWA,LSO">Südliches Afrika</button>
+          <button type="button" data-preset="AUS,NZL">Australien / Neuseeland</button>
+          <button type="button" data-preset="USA,CAN">USA / Kanada</button>
+          <button type="button" data-preset="NOR,SWE,FIN">Nordics</button>
+          <button type="button" data-preset="ARG,URY">Argentinien / Uruguay</button>
+          <button type="button" data-preset="THA,MYS,IDN">Südostasien</button>
+        </div>
+        <div id="comparisonGrid" class="comparison-grid"></div>
+      </section>
+    </div>
+
+    <script src="data/world-map.js"></script>
+    <script src="data/countries.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
