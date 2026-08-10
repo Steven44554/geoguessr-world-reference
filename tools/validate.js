@@ -112,6 +112,16 @@ assert(/vorn und hinten/i.test(COUNTRIES.LUX.licensePlates.description) && /gelb
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "style.css"), "utf8");
+const initialCountryPanelMarkup = html.match(/<aside\b[^>]*id=["']countryPanel["'][^>]*>([\s\S]*?)<\/aside>/i)?.[1] || "";
+const initialCountryPanelText = initialCountryPanelMarkup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+assert(initialCountryPanelMarkup, "Initial country panel markup is missing");
+assert(/\bempty-state\b/.test(initialCountryPanelMarkup), "Initial country panel must use the neutral empty state");
+assert(/Wähle ein Land/i.test(initialCountryPanelText), "Initial country panel needs a neutral German selection heading");
+assert(/Karte/i.test(initialCountryPanelText) && /Länderbrowser/i.test(initialCountryPanelText), "Initial country panel must explain both country selection routes in German");
+assert(!/Südafrika/i.test(initialCountryPanelText), "South Africa must not be displayed in the initial country panel");
+assert(!/\bdata-select-country\b/i.test(initialCountryPanelMarkup), "Initial country panel must not contain a preselected country action");
+assert(/\bselectedIso\s*:\s*null\b/.test(script), "Application state must start without a selected country");
+assert(!/\bselectCountry\s*\(\s*["']ZAF["']\s*,\s*false\s*,\s*false\s*\)\s*;/.test(script), "South Africa must not be selected during application startup");
 const matcherIds = [
   "matcherButton", "roadMatcher", "roadScreenshot", "matcherPreview", "matcherPreviewImage", "removeScreenshot",
   "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle",
@@ -228,6 +238,7 @@ console.log(JSON.stringify({
   crossCheckedRoadPatterns: crossCheckedPatterns.length,
   partiallyCheckedRoadPatterns: partialPatterns.length,
   matcherControls: matcherIds.length,
+  neutralInitialCountryPanel: true,
   matcherNetworkUploads: 0,
   floatingRoadBadges: 0,
   externalNetworkCalls: 0,

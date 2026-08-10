@@ -3,6 +3,8 @@ const path = require("path");
 const vm = require("vm");
 
 const root = path.resolve(__dirname, "..");
+const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const initialCountryPanelMarkup = html.match(/<aside\b[^>]*id=["']countryPanel["'][^>]*>([\s\S]*?)<\/aside>/i)?.[1] || "";
 
 class ClassList {
   constructor(node) {
@@ -180,6 +182,7 @@ const requiredIds = [
   "matcherExcludedSummary",
 ];
 const nodesById = new Map(requiredIds.map((id) => [id, new TestNode("div", id)]));
+nodesById.get("countryPanel").innerHTML = initialCountryPanelMarkup;
 nodesById.get("roadMatcher").hidden = true;
 nodesById.get("roadMatcher").setAttribute("aria-hidden", "true");
 nodesById.get("matcherButton").setAttribute("aria-expanded", "false");
@@ -208,6 +211,7 @@ for (const classes of [
 const matcherSelectIds = [
   "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle", "matcherPlateColor", "matcherSurface",
 ];
+const documentListeners = {};
 const document = {
   getElementById: (id) => nodesById.get(id) || null,
   createElement: (name) => new TestNode(name),
@@ -228,7 +232,20 @@ const document = {
     }
     return [...new Set(matches)];
   },
-  addEventListener() {},
+  addEventListener(type, handler) {
+    (documentListeners[type] ||= []).push(handler);
+  },
+  dispatchEvent(event) {
+    const normalizedEvent = {
+      preventDefault() {},
+      stopPropagation() {},
+      target: null,
+      currentTarget: document,
+      ...event,
+    };
+    (documentListeners[normalizedEvent.type] || []).forEach((handler) => handler(normalizedEvent));
+    return true;
+  },
 };
 const stored = new Map();
 const localStorage = {
@@ -284,6 +301,14 @@ function countryShape(iso3) {
   return nodesById.get("countryPaths").children.find((node) => node.dataset.iso === iso3);
 }
 
+function assertPanelCountry(iso3, name) {
+  const markup = nodesById.get("countryPanel").innerHTML;
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  assert(new RegExp(`<h2>[^<]*${escapedName}\\s*<\\/h2>`).test(markup), `Country panel heading does not show ${name}`);
+  assert(new RegExp(`<span class=["']country-code["']>\\s*${iso3}\\s*·`).test(markup), `Country panel code does not show ${iso3}`);
+  assert((markup.match(/class=["']country-content["']/g) || []).length === 1, "Country panel must contain exactly one selected-country profile");
+}
+
 function hasMatcherResultClass(node) {
   return ["is-matcher-match", "is-matcher-possible"].some((className) => node?.classList.contains(className));
 }
@@ -296,7 +321,13 @@ assert(paths.children.length === 177, `Expected 177 country paths, found ${paths
 assert(clips.children.length === 177, `Expected 177 clip paths, found ${clips.children.length}`);
 assert(borders.children.length === 177, `Expected 177 top borders, found ${borders.children.length}`);
 const worldCount = overlays.children.length;
-assert(nodesById.get("countryPanel").innerHTML.includes("Südafrika"), "Default country panel failed to render");
+const initialPanel = nodesById.get("countryPanel").innerHTML;
+assert(/\bempty-state\b/.test(initialPanel), "Country panel must retain its neutral empty state on startup");
+assert(/Wähle ein Land/i.test(initialPanel), "Country panel must show a neutral German selection heading on startup");
+assert(/Karte/i.test(initialPanel) && /Länderbrowser/i.test(initialPanel), "Country panel must explain the map and browser selection routes on startup");
+assert(!/Südafrika/i.test(initialPanel), "South Africa must not be displayed in the country panel on startup");
+assert(!nodesById.get("worldMap").classList.contains("has-selection"), "Map must start without an active country selection");
+assert(!paths.querySelectorAll(".is-selected").length && !borders.querySelectorAll(".is-selected").length, "No country shape or border may start selected");
 assert(worldCount >= 12 && worldCount <= 25, `World view should stay curated and sparse, found ${worldCount} road samples`);
 assert(!overlays.querySelectorAll(".road-map-pattern.is-badge").length, "Floating road badges must not exist");
 assert(!overlays.children.some((node) => !node.getAttribute("clip-path")), "Every world road sample must be clipped inside a country");
@@ -339,7 +370,17 @@ assert(overlays.children.some((node) => node.dataset.iso === "NLD"), "A selected
 netherlandsPath.listeners.pointerenter[0]({ clientX: 400, clientY: 250 });
 const tooltipMarkup = nodesById.get("mapTooltip").innerHTML;
 assert((tooltipMarkup.match(/<span/g) || []).length === 2 && (tooltipMarkup.match(/<strong/g) || []).length === 1, "Map tooltip must stay at exactly three compact lines");
-assert(nodesById.get("countryPanel").innerHTML.includes("Niederlande"), "Selected country panel failed to update");
+assertPanelCountry("NLD", "Niederlande");
+
+fire("browserButton", "click");
+assert(nodesById.get("countryBrowser").classList.contains("open"), "Country browser must open before browser selection");
+const japanBrowserCountry = new TestNode("button");
+japanBrowserCountry.dataset.selectCountry = "JPN";
+document.dispatchEvent({ type: "click", target: japanBrowserCountry });
+assertPanelCountry("JPN", "Japan");
+assert(countryShape("JPN").classList.contains("is-selected"), "Country selected through the browser must be highlighted");
+assert(!netherlandsPath.classList.contains("is-selected"), "Previous map selection must be cleared after browser selection");
+assert(!nodesById.get("countryBrowser").classList.contains("open"), "Country browser must close after selecting a country");
 
 // The matcher uses a locally shown screenshot as a visual reference. The actual
 // country filtering is deterministic and driven only by the selected clues.
@@ -489,6 +530,8 @@ console.log(JSON.stringify({
   floatingRoadBadges: 0,
   maxWorldSurfaceWidth: Math.max(...surfaceWidths),
   selectedSmallCountrySample: true,
+  neutralInitialCountryPanel: true,
+  countryPanelSelectionRouting: true,
   matcherLocalScreenshotPreview: true,
   matcherRoadCandidates: true,
   matcherManualExclusion: true,

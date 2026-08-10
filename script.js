@@ -1839,5 +1839,4 @@
   renderBrowser();
   updateMapMatches();
   updateCompareCount();
-  selectCountry("ZAF", false, false);
 })();
