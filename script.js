@@ -61,7 +61,12 @@
     matcherRoadPreview: document.getElementById("matcherRoadPreview"),
     matcherCandidates: document.getElementById("matcherCandidates"),
     matcherExcludedSummary: document.getElementById("matcherExcludedSummary"),
+    updateNotice: document.getElementById("updateNotice"),
+    dismissUpdateNotice: document.getElementById("dismissUpdateNotice"),
+    updateNoticeTime: document.getElementById("updateNoticeTime"),
   };
+
+  const UPDATE_STORAGE_KEY = "geoguessr-atlas-seen-update-id";
 
   const state = {
     selectedIso: null,
@@ -127,6 +132,19 @@
   function flagEmoji(iso2) {
     if (!iso2 || iso2.length !== 2) return "◈";
     return [...iso2.toUpperCase()].map((letter) => String.fromCodePoint(127397 + letter.charCodeAt(0))).join("");
+  }
+
+  function flagAssetCode(country) {
+    const code = String(country?.iso2 || "").toLocaleLowerCase("en");
+    return /^[a-z]{2}$/.test(code) ? code : "";
+  }
+
+  function countryFlagMarkup(country) {
+    const code = flagAssetCode(country);
+    if (!code) {
+      return `<span class="country-flag-fallback" aria-hidden="true">${escapeHtml(country.iso3)}</span>`;
+    }
+    return `<img src="assets/flags/4x3/${code}.svg" alt="" aria-hidden="true" width="96" height="72">`;
   }
 
   function loadFavorites() {
@@ -1521,6 +1539,7 @@
           <rect width="420" height="108" fill="#273129"></rect>
           <rect y="12" width="420" height="84" fill="${surface}"></rect>
           ${style.surface === "gravel" ? '<path d="M0 28 C80 18 150 39 230 25 S340 40 420 24 M0 79 C90 90 160 70 260 84 S350 70 420 82" fill="none" stroke="#a08f72" stroke-width="2" opacity=".45"></path>' : ""}
+          ${style.surfaceDetail === "concrete-slabs" ? '<path class="road-slab-joints" d="M52 12V96 M104 12V96 M156 12V96 M208 12V96 M260 12V96 M312 12V96 M364 12V96 M0 54H420"></path>' : ""}
           ${lineMarkup(18, edgeColorLeft, leftEdgeStyle, 3)}
           ${centerBand}
           ${lineMarkup(54, centerColor, style.centerStyle, 3)}
@@ -1645,9 +1664,12 @@
       <div class="country-content">
         <header class="country-hero">
           <div class="country-title-row">
+            <div class="country-flag" role="img" aria-label="${flagAssetCode(country) ? `Flagge von ${escapeHtml(country.name)}` : `Keine eindeutige lokale Flagge für ${escapeHtml(country.name)} hinterlegt`}">
+              ${countryFlagMarkup(country)}
+            </div>
             <div class="country-title">
               <span class="eyebrow">${country.detailLevel === "priorität" ? "KURATIERTES PRIORITÄTSPROFIL" : "TRANSPARENTE BASISDATEN"}</span>
-              <h2>${flagEmoji(country.iso2)} ${escapeHtml(country.name)}</h2>
+              <h2>${escapeHtml(country.name)}</h2>
               <span class="country-code">${escapeHtml(country.iso3)} · ${escapeHtml(country.continent)} · ${escapeHtml(country.domain)}</span>
             </div>
             <button id="favoriteCountry" class="favorite-button ${isFavorite ? "active" : ""}" type="button" aria-pressed="${isFavorite}" aria-label="${isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}">★</button>
@@ -1918,6 +1940,44 @@
     elements.browserButton.setAttribute("aria-expanded", "false");
   }
 
+  function dismissUpdateNotice() {
+    if (!elements.updateNotice || elements.updateNotice.hidden) return;
+    elements.updateNotice.hidden = true;
+    const updateId = elements.updateNotice.dataset.updateId || "";
+    if (!updateId) return;
+    try {
+      localStorage.setItem(UPDATE_STORAGE_KEY, updateId);
+    } catch {
+      // Der Hinweis bleibt auch ohne verfügbaren Browserspeicher bedienbar.
+    }
+  }
+
+  function initializeUpdateNotice() {
+    if (!elements.updateNotice || !elements.dismissUpdateNotice) return;
+    const updateId = elements.updateNotice.dataset.updateId || "";
+    const publishedAt = elements.updateNotice.dataset.publishedAt || "";
+    if (elements.updateNoticeTime && publishedAt) {
+      const publishedDate = new Date(publishedAt);
+      if (!Number.isNaN(publishedDate.getTime())) {
+        const formatted = new Intl.DateTimeFormat("de-DE", {
+          dateStyle: "long",
+          timeStyle: "short",
+          timeZone: "Europe/Luxembourg",
+        }).format(publishedDate);
+        elements.updateNoticeTime.textContent = `${formatted} Uhr`;
+        elements.updateNoticeTime.setAttribute("datetime", publishedAt);
+      }
+    }
+    let seenUpdateId = "";
+    try {
+      seenUpdateId = localStorage.getItem(UPDATE_STORAGE_KEY) || "";
+    } catch {
+      seenUpdateId = "";
+    }
+    elements.updateNotice.hidden = !updateId || seenUpdateId === updateId;
+    elements.dismissUpdateNotice.addEventListener("click", dismissUpdateNotice);
+  }
+
   function applyTransform() {
     const { x, y, scale } = state.transform;
     const nextZoomLevel = zoomLevelForScale(scale);
@@ -1973,7 +2033,15 @@
 
     elements.map.addEventListener("pointerdown", (event) => {
       elements.map.setPointerCapture(event.pointerId);
-      state.pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, originX: state.transform.x, originY: state.transform.y };
+      const countryTarget = event.target.closest?.("[data-iso]");
+      state.pointer = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        originX: state.transform.x,
+        originY: state.transform.y,
+        selectionIso: event.button === 0 ? countryTarget?.dataset.iso || "" : "",
+      };
       state.dragged = false;
     });
 
@@ -1993,8 +2061,12 @@
 
     const endPointer = (event) => {
       if (!state.pointer || event.pointerId !== state.pointer.id) return;
+      const selectedIso = event.type === "pointerup" && !state.dragged ? state.pointer.selectionIso : "";
       state.pointer = null;
-      window.setTimeout(() => { state.dragged = false; }, 0);
+      if (selectedIso) selectCountry(selectedIso);
+      window.setTimeout(() => {
+        state.dragged = false;
+      }, 0);
     };
     elements.map.addEventListener("pointerup", endPointer);
     elements.map.addEventListener("pointercancel", endPointer);
@@ -2066,7 +2138,8 @@
         elements.search.focus();
       }
       if (event.key === "Escape") {
-        if (!elements.modal.hidden) closeComparison();
+        if (elements.updateNotice && !elements.updateNotice.hidden) dismissUpdateNotice();
+        else if (!elements.modal.hidden) closeComparison();
         else closeBrowser();
       }
     });
@@ -2084,6 +2157,7 @@
   bindMapControls();
   bindInterface();
   bindMatcher();
+  initializeUpdateNotice();
   renderBrowser();
   updateMapMatches();
   updateCompareCount();

@@ -181,6 +181,7 @@ const requiredIds = [
   "matcherPlateColor", "matcherSurface", "matcherStopOnly", "stopOnlyFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
   "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
   "matcherExcludedSummary",
+  "updateNotice", "dismissUpdateNotice", "updateNoticeHeading", "updateNoticeText", "updateNoticeTime",
 ];
 const nodesById = new Map(requiredIds.map((id) => [id, new TestNode("div", id)]));
 nodesById.get("countryPanel").innerHTML = initialCountryPanelMarkup;
@@ -190,6 +191,9 @@ nodesById.get("matcherButton").setAttribute("aria-expanded", "false");
 nodesById.get("matcherPreview").hidden = true;
 nodesById.get("roadScreenshot").type = "file";
 nodesById.get("matcherStopOnly").type = "checkbox";
+nodesById.get("updateNotice").hidden = true;
+nodesById.get("updateNotice").dataset.updateId = "2026-08-10-flaggen-philippinen-v1";
+nodesById.get("updateNotice").dataset.publishedAt = "2026-08-10T17:02:00+02:00";
 const stopOnlyFilterChipNode = nodesById.get("stopOnlyFilterChip");
 stopOnlyFilterChipNode.tagName = "button";
 stopOnlyFilterChipNode.classList.add("filter-chip");
@@ -318,6 +322,19 @@ function hasMatcherResultClass(node) {
   return ["is-matcher-match", "is-matcher-possible"].some((className) => node?.classList.contains(className));
 }
 
+const updateNotice = nodesById.get("updateNotice");
+const updateNoticeId = updateNotice.dataset.updateId;
+assert(updateNotice.hidden === false, "A newly published version must reveal the update notice");
+assert(/10\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /17:02/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its Luxembourg publication date and time");
+document.dispatchEvent({ type: "keydown", key: "Escape" });
+assert(updateNotice.hidden === true, "Escape must dismiss a visible update notice");
+assert(stored.get("geoguessr-atlas-seen-update-id") === updateNoticeId, "Dismissing the update notice must persist the current version ID");
+stored.delete("geoguessr-atlas-seen-update-id");
+updateNotice.hidden = false;
+fire("dismissUpdateNotice", "click");
+assert(updateNotice.hidden === true, "Clicking the update notice button must dismiss the popup");
+assert(stored.get("geoguessr-atlas-seen-update-id") === updateNoticeId, "Click dismissal must persist the current update version");
+
 const paths = nodesById.get("countryPaths");
 const clips = nodesById.get("countryClipPaths");
 const borders = nodesById.get("countryBorders");
@@ -345,6 +362,12 @@ assert(Math.max(...surfaceWidths) <= 44, "World road samples must respect the 44
 const southAfrica = overlays.children.find((node) => node.dataset.iso === "ZAF");
 assert(southAfrica && southAfrica.getAttribute("clip-path") === "url(#country-clip-ZAF)", "South Africa must use a clipped road sample");
 assert(southAfrica.children[0]?.classList.contains("map-road-surface"), "South Africa must integrate its lines into a compact asphalt strip");
+
+const russiaPointerTarget = countryShape("RUS");
+fire("worldMap", "pointerdown", { pointerId: 77, button: 0, clientX: 720, clientY: 160, target: russiaPointerTarget });
+fire("worldMap", "pointerup", { pointerId: 77, button: 0, clientX: 720, clientY: 160, target: nodesById.get("worldMap") });
+assertPanelCountry("RUS", "Russland");
+assert(russiaPointerTarget.classList.contains("is-selected"), "A non-drag pointer release must select the original country even when SVG pointer capture retargets pointerup");
 
 const zoomIn = nodesById.get("zoomIn");
 zoomIn.listeners.click[0]();
@@ -388,8 +411,23 @@ const japanPanelMarkup = nodesById.get("countryPanel").innerHTML;
 assert(/Datenqualität und Quellen/.test(japanPanelMarkup), "Selected-country panel must expose data quality and sources");
 assert(/Zuverlässigkeit/.test(japanPanelMarkup) && /Quelle 1/.test(japanPanelMarkup), "Country data-quality panel must label confidence and at least one source");
 assert(/target="_blank" rel="noopener noreferrer"/.test(japanPanelMarkup), "Country source links must open safely in a new tab");
+assert((japanPanelMarkup.match(/class="country-flag"/g) || []).length === 1 && /aria-label="Flagge von Japan"/.test(japanPanelMarkup), "Japan's selected-country profile must show exactly one prominent accessible flag");
+assert(/src="assets\/flags\/4x3\/jp\.svg"/.test(japanPanelMarkup), "Japan's selected-country profile must use its local SVG flag");
 assert(!netherlandsPath.classList.contains("is-selected"), "Previous map selection must be cleared after browser selection");
 assert(!nodesById.get("countryBrowser").classList.contains("open"), "Country browser must close after selecting a country");
+
+countryShape("RUS").listeners.click[0]();
+assertPanelCountry("RUS", "Russland");
+const russiaPanelMarkup = nodesById.get("countryPanel").innerHTML;
+assert(/aria-label="Flagge von Russland"/.test(russiaPanelMarkup) && /src="assets\/flags\/4x3\/ru\.svg"/.test(russiaPanelMarkup), "Selecting Russia must replace the previous flag with Russia's local SVG flag");
+assert(!/assets\/flags\/4x3\/jp\.svg/.test(russiaPanelMarkup), "Changing countries must not leave the previous flag in the panel");
+
+countryShape("PHL").listeners.click[0]();
+assertPanelCountry("PHL", "Philippinen");
+const philippinesPanelMarkup = nodesById.get("countryPanel").innerHTML;
+assert(/aria-label="Flagge von Philippinen"/.test(philippinesPanelMarkup) && /src="assets\/flags\/4x3\/ph\.svg"/.test(philippinesPanelMarkup), "Selecting the Philippines must show the Philippine local SVG flag");
+assert((philippinesPanelMarkup.match(/class="road-slab-joints"/g) || []).length === 2, "Both Philippine concrete road diagrams must show rectangular slab joints");
+assert(!/assets\/flags\/4x3\/ru\.svg/.test(philippinesPanelMarkup), "The Philippine panel must not retain Russia's flag");
 
 // The matcher uses a locally shown screenshot as a visual reference. The actual
 // country filtering is deterministic and driven only by the selected clues.
@@ -580,6 +618,7 @@ console.log(JSON.stringify({
   selectedSmallCountrySample: true,
   neutralInitialCountryPanel: true,
   countryPanelSelectionRouting: true,
+  pointerCapturedCountrySelection: true,
   matcherLocalScreenshotPreview: true,
   matcherRoadCandidates: true,
   matcherManualExclusion: true,
@@ -595,5 +634,8 @@ console.log(JSON.stringify({
   matcherExpandedVisualFilters: true,
   matcherEvidenceConservativeExclusion: true,
   countryPanelEvidenceSources: true,
+  selectedCountryLocalFlags: true,
+  philippineConcreteSlabs: true,
+  versionedDismissibleUpdateNotice: true,
   matcherResetPreservesSelection: true,
 }, null, 2));

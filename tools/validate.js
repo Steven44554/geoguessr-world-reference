@@ -10,6 +10,7 @@ vm.runInContext(fs.readFileSync(path.join(root, "data", "countries.js"), "utf8")
 
 const { WORLD_GEOJSON, COUNTRIES, SMALL_COUNTRY_MARKERS } = context.window;
 const records = Object.values(COUNTRIES);
+const flagDirectory = path.join(root, "assets", "flags", "4x3");
 const allowedPatternColors = new Set(["white", "yellow", "green", "none"]);
 const allowedPatternStyles = new Set(["solid", "dashed", "double-solid", "double-dashed", "solid-dashed", "none"]);
 const allowedPatternConfidence = new Set(["unknown", "low", "medium", "medium-high", "high"]);
@@ -84,6 +85,12 @@ records.forEach((country) => {
     assert(allowedPatternScopes.has(country.roadMapPattern.scope), `Verified pattern lacks a valid scope: ${country.iso3}`);
     assert(country.roadMapPattern.showOnWorld === undefined || typeof country.roadMapPattern.showOnWorld === "boolean", `Invalid world visibility flag: ${country.iso3}`);
   }
+  country.roadStyles.forEach((style) => {
+    if (style.surfaceDetail !== undefined) {
+      assert(style.surfaceDetail === "concrete-slabs", `Invalid road surface detail: ${country.iso3} -> ${style.surfaceDetail}`);
+      assert(style.surface === "concrete", `Concrete slab detail requires a concrete surface: ${country.iso3}`);
+    }
+  });
   assert(allowedStopFormats.has(country.stopSign?.format), `Invalid stop-sign format: ${country.iso3}`);
   assert(["unknown", "low", "medium", "high"].includes(country.stopSign?.confidence), `Invalid stop-sign confidence: ${country.iso3}`);
   assert(Array.isArray(country.stopSign?.sources), `Missing stop-sign sources array: ${country.iso3}`);
@@ -109,6 +116,25 @@ records.forEach((country) => {
   });
 });
 
+assert(fs.existsSync(flagDirectory), "Local flag asset directory is missing");
+assert(fs.existsSync(path.join(root, "assets", "flags", "LICENSE")), "Local flag asset license is missing");
+const localFlagFiles = fs.readdirSync(flagDirectory).filter((name) => name.endsWith(".svg"));
+assert(localFlagFiles.length >= 260, `Local flag asset set is unexpectedly incomplete: ${localFlagFiles.length}`);
+localFlagFiles.forEach((name) => {
+  const flagSvg = fs.readFileSync(path.join(flagDirectory, name), "utf8");
+  assert(/<svg\b/i.test(flagSvg), `Flag asset is not valid SVG markup: ${name}`);
+  assert(!/<script\b|\bon\w+\s*=|(?:href|src)\s*=\s*["']https?:\/\//i.test(flagSvg), `Flag asset contains executable or remote content: ${name}`);
+});
+const explicitFlagFallbacks = new Set(["CYN", "SOL"]);
+records.forEach((country) => {
+  if (explicitFlagFallbacks.has(country.iso3)) {
+    assert(!country.iso2, `Political flag fallback must stay explicit for ${country.iso3}`);
+    return;
+  }
+  assert(/^[A-Z]{2}$/i.test(country.iso2), `Country lacks a usable flag code: ${country.iso3}`);
+  assert(fs.existsSync(path.join(flagDirectory, `${country.iso2.toLowerCase()}.svg`)), `Country lacks a local flag asset: ${country.iso3} -> ${country.iso2}`);
+});
+
 const mappedPatterns = records.filter((country) => country.roadMapPattern.confidence !== "unknown");
 const crossCheckedPatterns = records.filter((country) => country.roadVerification?.status === "cross-checked");
 const partialPatterns = records.filter((country) => country.roadVerification?.status === "partial");
@@ -129,6 +155,9 @@ assert(COUNTRIES.URY.roadStyles.some((style) => style.centerColor === "gelb" && 
 assert(COUNTRIES.IDN.roadMapPattern.center.color === "yellow", "Indonesia's representative national-road pattern must use a yellow center");
 assert(COUNTRIES.IDN.roadMapPattern.scope === "road-class", "Indonesia's yellow pattern must be limited to a road class");
 assert(COUNTRIES.PHL.roadMapPattern.center.color === "white", "Philippines' current representative base pattern must use a white center");
+assert(COUNTRIES.PHL.roadStyles.length >= 2 && COUNTRIES.PHL.roadStyles.every((style) => style.surface === "concrete" && style.surfaceDetail === "concrete-slabs"), "Philippine road diagrams must retain concrete slab surfaces and joints");
+assert(COUNTRIES.RUS.iso2 === "RU" && COUNTRIES.PHL.iso2 === "PH", "Russia and the Philippines must have local flag asset codes");
+assert(COUNTRIES.NOR.iso2 === "NO" && COUNTRIES.FRA.iso2 === "FR" && COUNTRIES.TWN.iso2 === "TW" && COUNTRIES.KOS.iso2 === "XK", "Known Natural Earth flag-code gaps must be normalized");
 assert(COUNTRIES.NZL.roadMapPattern.center.color === "white" && COUNTRIES.NZL.roadMapPattern.center.style === "dashed", "New Zealand's map must use its normal white dashed center line");
 assert(COUNTRIES.NZL.roadStyles.some((style) => style.centerColor === "gelb" && /double|doppelt/.test(style.centerStyle)), "New Zealand must retain its double-yellow no-passing variant in the panel");
 for (const iso3 of ["USA", "CAN", "MEX", "BRA"]) {
@@ -177,6 +206,17 @@ for (const id of matcherIds) {
   const occurrences = html.match(new RegExp(`id=["']${id}["']`, "g")) || [];
   assert(occurrences.length === 1, `Matcher element must exist exactly once: ${id}`);
 }
+const updateNoticeIds = ["updateNotice", "dismissUpdateNotice", "updateNoticeHeading", "updateNoticeText", "updateNoticeTime"];
+for (const id of updateNoticeIds) {
+  const occurrences = html.match(new RegExp(`id=["']${id}["']`, "g")) || [];
+  assert(occurrences.length === 1, `Update notice element must exist exactly once: ${id}`);
+}
+const updateNoticeMarkup = html.match(/<aside\b[^>]*id=["']updateNotice["'][^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
+assert(/role=["']status["']/i.test(updateNoticeMarkup) && /aria-live=["']polite["']/i.test(updateNoticeMarkup) && /aria-atomic=["']true["']/i.test(updateNoticeMarkup), "Update notice needs an accessible polite live region");
+assert(/data-update-id=["']2026-08-10-flaggen-philippinen-v1["']/i.test(updateNoticeMarkup), "Update notice needs a stable version identifier");
+assert(/data-published-at=["']2026-08-10T17:02:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs an ISO publication timestamp");
+assert(/<button\b[^>]*id=["']dismissUpdateNotice["']/i.test(updateNoticeMarkup), "The complete update notice must be dismissible with a real button");
+assert(/10\. August 2026[^<]*17:02 Uhr/i.test(updateNoticeMarkup), "Update notice must show the publication date and time without JavaScript");
 assert(/Straßen-Screenshot auswerten/.test(html), "Matcher needs a visible, descriptive German heading");
 assert(/Der Screenshot bleibt lokal/.test(html), "Matcher must explain that screenshots stay local");
 assert(/Wähle nur sichtbare Merkmale aus/.test(html), "Matcher must tell users to select only clues actually visible in the screenshot");
@@ -266,6 +306,12 @@ for (const className of ["is-matcher-match", "is-matcher-possible", "is-matcher-
   assert(css.includes(`.${className}`), `Matcher map class lacks styling: ${className}`);
 }
 assert(script.includes("data-matcher-open") && script.includes("data-matcher-exclude") && script.includes("data-matcher-restore"), "Matcher candidate actions are incomplete");
+assert(/countryFlagMarkup/.test(script) && /assets\/flags\/4x3\//.test(script), "Selected-country panel lacks local SVG flag rendering");
+assert(/class=\"country-flag\"/.test(script) && /Flagge von/.test(script), "Selected-country flag lacks its prominent accessible panel container");
+assert(/initializeUpdateNotice/.test(script) && /dismissUpdateNotice/.test(script) && /geoguessr-atlas-seen-update-id/.test(script), "Versioned update notice behavior is incomplete");
+assert(/Europe\/Luxembourg/.test(script) && /Intl\.DateTimeFormat/.test(script), "Update notice does not format its publication time for Luxembourg");
+assert(/road-slab-joints/.test(script) && /concrete-slabs/.test(script), "Philippine concrete slab joints are not rendered by the road diagram");
+assert(/selectionIso/.test(script) && /event\.target\.closest\?\.\(\"\[data-iso\]\"\)/.test(script), "Pointer-captured map clicks are not routed back to the selected country");
 assert(/matcherCenterColor/.test(script) && /matcherEdgeStyle/.test(script) && /matcherPlateColor/.test(script) && /matcherSurface/.test(script), "Matcher does not evaluate all visible clue controls");
 assert(/matcherStopOnly/.test(script) && /\.checked\b/.test(script), "Matcher does not evaluate the STOP-only checkbox state");
 assert(/matcherStopText/.test(script) && /matcherWarningSign/.test(script) && /matcherPlateLayout/.test(script), "Matcher does not evaluate the strong expanded visual controls");
@@ -276,6 +322,7 @@ assert(/stopOnlyFilterChip/.test(script) && /aria-pressed/.test(script), "Main S
 assert(!script.includes("smallBadgeOffsets") && !script.includes("road-badge-base"), "Legacy floating road badges must be removed from the map script");
 assert(css.includes(".map-road-surface") && css.includes(".map-road-neutral-line") && css.includes(".has-selection"), "Final road, neutral, and selection styles are incomplete");
 assert(css.includes(".matcher-advanced-grid") && css.includes(".matcher-evidence") && css.includes(".source-list"), "Expanded matcher and data-quality styles are incomplete");
+assert(css.includes(".country-flag") && css.includes(".update-notice") && css.includes(".road-slab-joints"), "Flag, update-notice, or concrete-slab styles are incomplete");
 assert(!css.includes("road-badge-base") && !css.includes("road-badge-leader"), "Legacy road badge styles must be removed");
 for (const relativePath of ["style.css", "data/world-map.js", "data/countries.js", "script.js"]) {
   assert(html.includes(relativePath), `index.html does not reference ${relativePath}`);
@@ -307,9 +354,14 @@ console.log(JSON.stringify({
   partiallyCheckedRoadPatterns: partialPatterns.length,
   visualEvidenceProfiles,
   sourceBackedVisualProfiles,
+  localFlagAssets: localFlagFiles.length,
   matcherControls: matcherIds.length,
   phase3VisualFilters: true,
   phase4EvidenceQuality: true,
+  selectedCountryFlags: true,
+  philippineConcreteSlabs: true,
+  versionedUpdateNotice: true,
+  pointerCapturedCountrySelection: true,
   neutralInitialCountryPanel: true,
   matcherNetworkUploads: 0,
   floatingRoadBadges: 0,

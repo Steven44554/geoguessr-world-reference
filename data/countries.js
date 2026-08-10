@@ -7,6 +7,13 @@
  * absolute national rule.
  */
 (function buildCountryDatabase() {
+  const iso2Overrides = {
+    NOR: "NO",
+    FRA: "FR",
+    TWN: "TW",
+    KOS: "XK",
+  };
+
   const leftTraffic = new Set([
     "ATG", "AUS", "BHS", "BGD", "BRB", "BTN", "BWA", "BRN", "CYP", "DMA",
     "SWZ", "CYN", "FJI", "FLK", "GRD", "GUY", "IND", "IDN", "IRL", "JAM", "JPN", "KEN",
@@ -79,7 +86,7 @@
     const side = leftTraffic.has(source.iso3) ? "left" : "right";
     countries[source.iso3] = {
       iso3: source.iso3,
-      iso2: source.iso2 || "",
+      iso2: iso2Overrides[source.iso3] || source.iso2 || "",
       name: source.nameDe || source.name,
       nameEnglish: source.name,
       continent: continentNames[source.continent] || source.continent || "Unbekannt",
@@ -921,8 +928,8 @@
     roadWidth: "Hauptachsen breit; lokale Straßen eng und dicht bebaut",
     shoulders: "Betonränder, offene Rinnen, Verkaufsstände und dichter Verkehr",
     roadStyles: [
-      { label: "Beton-Hauptstraße", centerColor: "weiß", centerStyle: "dashed", leftEdgeColor: "weiß", rightEdgeColor: "weiß", lanes: 2, surface: "concrete", note: "aktuelles Grundmuster; gelbe Varianten kommen vor" },
-      { label: "Lokale Straße", centerColor: "none", centerStyle: "none", leftEdgeColor: "none", rightEdgeColor: "none", lanes: 2, surface: "concrete", note: "oft unmarkiert" },
+      { label: "Beton-Hauptstraße", centerColor: "weiß", centerStyle: "dashed", leftEdgeColor: "weiß", rightEdgeColor: "weiß", lanes: 2, surface: "concrete", surfaceDetail: "concrete-slabs", note: "rechteckige Betonplatten mit sichtbaren Fugen; gelbe Varianten kommen vor" },
+      { label: "Lokale Straße", centerColor: "none", centerStyle: "none", leftEdgeColor: "none", rightEdgeColor: "none", lanes: 2, surface: "concrete", surfaceDetail: "concrete-slabs", note: "oft unmarkierte Betonplatten mit sichtbaren Fugen" },
     ],
     bollards: "Schwarz-weiß oder schwarz-gelb bemalte Betonobjekte und Brückenkanten häufig.",
     signs: "Sehr viel Englisch; US-inspirierte gelbe Warnrauten und zahlreiche Barangay-Schilder.",
