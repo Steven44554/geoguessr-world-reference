@@ -65,12 +65,43 @@
     matcherRoadPreview: document.getElementById("matcherRoadPreview"),
     matcherCandidates: document.getElementById("matcherCandidates"),
     matcherExcludedSummary: document.getElementById("matcherExcludedSummary"),
+    aiHelperCard: document.getElementById("aiHelperCard"),
+    aiHelperStatus: document.getElementById("aiHelperStatus"),
+    analyzeScreenshotButton: document.getElementById("analyzeScreenshotButton"),
+    aiAnalysisResult: document.getElementById("aiAnalysisResult"),
+    downloadAiHelper: document.getElementById("downloadAiHelper"),
     updateNotice: document.getElementById("updateNotice"),
     dismissUpdateNotice: document.getElementById("dismissUpdateNotice"),
     updateNoticeTime: document.getElementById("updateNoticeTime"),
   };
 
   const UPDATE_STORAGE_KEY = "geoguessr-atlas-seen-update-id";
+  const AI_HELPER_BASE_URL = "http://127.0.0.1:43117";
+  const AI_HELPER_HEADER = { "X-GeoGuessr-Helper": "1" };
+  const AI_HELPER_HEALTH_TIMEOUT_MS = 5000;
+  const AI_HELPER_ANALYSIS_TIMEOUT_MS = 60000;
+  const AI_CONFIDENCE_THRESHOLD = 0.6;
+  const AI_MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+  const AI_ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+  const AI_OBSERVATION_RULES = Object.freeze({
+    traffic: { element: "matcherTraffic", values: ["left", "right"], label: "Verkehrsseite" },
+    centerColor: { element: "matcherCenterColor", values: ["white", "yellow", "green", "none"], label: "Mittellinienfarbe" },
+    centerStyle: { element: "matcherCenterStyle", values: ["dashed", "solid", "double-solid", "solid-dashed", "none"], label: "Mittellinienstil" },
+    edgeColor: { element: "matcherEdgeColor", values: ["white", "yellow", "none"], label: "Randlinienfarbe" },
+    edgeStyle: { element: "matcherEdgeStyle", values: ["dashed", "solid", "double-solid", "solid-dashed", "none"], label: "Randlinienstil" },
+    plateColor: { element: "matcherPlateColor", values: ["yellow", "white", "dark"], label: "Kennzeichenfarbe" },
+    surface: { element: "matcherSurface", values: ["asphalt", "concrete", "gravel", "unpaved"], label: "Straßenoberfläche" },
+    stopOnly: { element: "matcherStopOnly", values: [true], label: "Stoppschild nur mit „STOP“" },
+    stopOther: { element: "matcherStopOther", values: [true], label: "Stoppschild mit anderem Text" },
+    stopText: { element: "matcherStopText", values: ["alto", "pare", "berhenti", "tomare-stop"], label: "Stoppschild-Text" },
+    warningSign: { element: "matcherWarningSign", values: ["diamond-yellow", "triangle-white", "triangle-yellow"], label: "Warnschild-Grundform" },
+    plateLayout: { element: "matcherPlateLayout", values: ["white-white", "white-yellow", "yellow-yellow", "dark-dark"], label: "Kennzeichen vorn / hinten" },
+    bollard: { element: "matcherBollard", values: ["white-black", "painted-black-white", "black-yellow"], label: "Leitpfosten-Muster" },
+    pole: { element: "matcherPole", values: ["wood", "concrete"], label: "Mastmaterial" },
+    shoulder: { element: "matcherShoulder", values: ["paved", "gravel", "none", "drainage"], label: "Straßenrand / Schulter" },
+    signBack: { element: "matcherSignBack", values: ["dark"], label: "Schildrückseite" },
+    camera: { element: "matcherCamera", values: ["low"], label: "Kamera-Hinweis" },
+  });
 
   const state = {
     selectedIso: null,
@@ -90,6 +121,10 @@
       manualExcluded: new Set(),
       previewUrl: null,
       imageName: "",
+      ai: {
+        analyzing: false,
+        healthRequestId: 0,
+      },
     },
   };
 
@@ -1498,6 +1533,383 @@
     renderMatcherExcluded();
   }
 
+  function setAiHelperStatus(status, message) {
+    if (!elements.aiHelperStatus) return;
+    const indicator = document.createElement("span");
+    indicator.setAttribute("aria-hidden", "true");
+    elements.aiHelperStatus.dataset.state = status;
+    elements.aiHelperStatus.replaceChildren(indicator, document.createTextNode(message));
+    elements.aiHelperCard?.setAttribute("data-helper-state", status);
+  }
+
+  function validateAiImageFile(file) {
+    if (!file) return "Wähle zuerst einen Straßen-Screenshot aus.";
+    if (!AI_ALLOWED_IMAGE_TYPES.has(file.type)) {
+      return "Bitte verwende ein Bild im Format PNG, JPEG oder WebP.";
+    }
+    if (!Number.isFinite(file.size) || file.size <= 0) {
+      return "Die ausgewählte Bilddatei ist leer oder konnte nicht gelesen werden.";
+    }
+    if (file.size > AI_MAX_IMAGE_BYTES) {
+      return "Das Bild ist größer als 12 MB. Wähle bitte einen kleineren Screenshot.";
+    }
+    return "";
+  }
+
+  function updateAiAnalyzeButton() {
+    if (!elements.analyzeScreenshotButton) return;
+    const file = elements.roadScreenshot?.files?.[0];
+    const hasValidImage = Boolean(file) && !validateAiImageFile(file);
+    elements.analyzeScreenshotButton.disabled = !hasValidImage || state.matcher.ai.analyzing;
+    elements.analyzeScreenshotButton.textContent = state.matcher.ai.analyzing
+      ? "KI analysiert …"
+      : "Mit KI analysieren";
+  }
+
+  function clearAiAnalysisResult() {
+    if (!elements.aiAnalysisResult) return;
+    elements.aiAnalysisResult.replaceChildren();
+    elements.aiAnalysisResult.hidden = true;
+    delete elements.aiAnalysisResult.dataset.state;
+  }
+
+  function showAiAnalysisMessage(status, title, message) {
+    if (!elements.aiAnalysisResult) return;
+    const heading = document.createElement("strong");
+    const copy = document.createElement("p");
+    heading.textContent = title;
+    copy.textContent = message;
+    elements.aiAnalysisResult.dataset.state = status;
+    elements.aiAnalysisResult.replaceChildren(heading, copy);
+    elements.aiAnalysisResult.hidden = false;
+  }
+
+  async function readHelperResponse(response) {
+    const raw = await response.text();
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { message: raw.slice(0, 300) };
+    }
+  }
+
+  function helperErrorMessage(response, payload) {
+    const code = String(payload?.error?.code || payload?.code || "").toUpperCase();
+    const knownMessages = {
+      API_KEY_MISSING: "Im lokalen Helfer ist noch kein Groq-Key gespeichert. Öffne den Helfer und trage dort deinen Key ein.",
+      MISSING_API_KEY: "Im lokalen Helfer ist noch kein Groq-Key gespeichert. Öffne den Helfer und trage dort deinen Key ein.",
+      INVALID_API_KEY: "Der gespeicherte Groq-Key wurde abgelehnt. Öffne den lokalen Helfer und prüfe den Key.",
+      RATE_LIMITED: "Das kostenlose Groq-Limit ist gerade erreicht. Warte kurz und versuche es erneut.",
+      RATE_LIMIT: "Das kostenlose Groq-Limit ist gerade erreicht. Warte kurz und versuche es erneut.",
+      IMAGE_TOO_LARGE: "Der Screenshot ist für die Analyse zu groß. Wähle bitte ein kleineres Bild.",
+      UNSUPPORTED_IMAGE: "Dieses Bildformat wird nicht unterstützt. Verwende PNG, JPEG oder WebP.",
+      INVALID_IMAGE: "Der Screenshot konnte nicht als gültiges Bild gelesen werden. Speichere ihn erneut als PNG, JPEG oder WebP.",
+      UPSTREAM_ERROR: "Groq konnte die Analyse gerade nicht abschließen. Warte kurz und versuche es erneut.",
+      UPSTREAM_TIMEOUT: "Groq hat nicht rechtzeitig geantwortet. Versuche die Analyse bitte erneut.",
+    };
+    if (knownMessages[code]) return knownMessages[code];
+    if (response.status === 401 || response.status === 403) {
+      return "Der Groq-Key fehlt oder wurde abgelehnt. Öffne den lokalen Helfer und prüfe ihn dort.";
+    }
+    if (response.status === 413) return "Der Screenshot ist für die Analyse zu groß.";
+    if (response.status === 429) return "Das kostenlose Groq-Limit ist gerade erreicht. Warte kurz und versuche es erneut.";
+    const serverMessage = payload?.error?.message || payload?.error || payload?.message;
+    if (typeof serverMessage === "string" && serverMessage.trim()) return serverMessage.trim().slice(0, 300);
+    return `Der lokale Helfer konnte die Analyse nicht abschließen (Fehler ${response.status}).`;
+  }
+
+  async function checkAiHelperHealth() {
+    if (!elements.aiHelperStatus) return false;
+    const requestId = ++state.matcher.ai.healthRequestId;
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, AI_HELPER_HEALTH_TIMEOUT_MS);
+    setAiHelperStatus("checking", "Lokaler Helfer wird geprüft …");
+    try {
+      const response = await fetch(`${AI_HELPER_BASE_URL}/health`, {
+        method: "GET",
+        headers: { ...AI_HELPER_HEADER, Accept: "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const payload = await readHelperResponse(response);
+      if (!response.ok || payload.ok === false) throw new Error(helperErrorMessage(response, payload));
+      if (requestId !== state.matcher.ai.healthRequestId) return false;
+      const configured = payload.groqConfigured ?? payload.apiKeyConfigured ?? payload.configured;
+      if (configured === false) {
+        setAiHelperStatus("needs-key", "Helfer läuft · Groq-Key fehlt");
+      } else {
+        setAiHelperStatus("connected", "Lokaler Helfer verbunden");
+      }
+      return true;
+    } catch (error) {
+      if (requestId !== state.matcher.ai.healthRequestId) return false;
+      const message = timedOut
+        ? "Helfer antwortet nicht"
+        : "Lokaler Helfer nicht erreichbar";
+      setAiHelperStatus("offline", message);
+      return false;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
+  function aiValueLabel(key, value) {
+    const labels = {
+      traffic: { left: "Linksverkehr", right: "Rechtsverkehr" },
+      centerColor: { white: "weiß", yellow: "gelb", green: "grünes Mittelband", none: "keine" },
+      centerStyle: { dashed: "gestrichelt", solid: "durchgezogen", "double-solid": "doppelt durchgezogen", "solid-dashed": "durchgezogen + gestrichelt", none: "keine" },
+      edgeColor: { white: "weiß", yellow: "gelb", none: "keine" },
+      edgeStyle: { dashed: "gestrichelt", solid: "durchgezogen", "double-solid": "doppelt durchgezogen", "solid-dashed": "durchgezogen + gestrichelt", none: "keine" },
+      plateColor: { yellow: "gelb", white: "weiß", dark: "dunkel" },
+      surface: { asphalt: "Asphalt", concrete: "Beton", gravel: "Schotter", unpaved: "unbefestigt" },
+      stopText: { alto: "ALTO", pare: "PARE", berhenti: "BERHENTI", "tomare-stop": "止まれ oder 止まれ + STOP" },
+      warningSign: { "diamond-yellow": "gelbe Raute", "triangle-white": "weißes Dreieck mit rotem Rand", "triangle-yellow": "gelbes Dreieck mit rotem Rand" },
+      plateLayout: { "white-white": "weiß / weiß", "white-yellow": "weiß / gelb", "yellow-yellow": "gelb / gelb", "dark-dark": "dunkel / dunkel" },
+      bollard: { "white-black": "weiß mit schwarzem Feld", "painted-black-white": "schwarz-weiß bemalt", "black-yellow": "schwarz-gelb" },
+      pole: { wood: "Holz", concrete: "Beton" },
+      shoulder: { paved: "befestigt", gravel: "Kies oder Sand", none: "keine", drainage: "offene Betonrinne" },
+      signBack: { dark: "dunkel oder schwarz" },
+      camera: { low: "auffällig niedrig" },
+    };
+    if (value === true) return "erkannt";
+    return labels[key]?.[value] || String(value ?? "unbekannt");
+  }
+
+  function parseAiObservations(rawObservations) {
+    const observations = rawObservations && typeof rawObservations === "object" && !Array.isArray(rawObservations)
+      ? rawObservations
+      : {};
+    const parsed = [];
+    let unknownCount = 0;
+    Object.entries(observations).forEach(([key, raw]) => {
+      const observation = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+      if (observation.value === "" || observation.value === null || observation.value === undefined || observation.value === false) return;
+      const rule = Object.prototype.hasOwnProperty.call(AI_OBSERVATION_RULES, key)
+        ? AI_OBSERVATION_RULES[key]
+        : null;
+      if (!rule) {
+        unknownCount += 1;
+        return;
+      }
+      const confidence = Number(observation.confidence);
+      const hasValidConfidence = Number.isFinite(confidence) && confidence >= 0 && confidence <= 1;
+      const hasValidValue = rule.values.includes(observation.value);
+      parsed.push({
+        key,
+        rule,
+        value: observation.value,
+        confidence: hasValidConfidence ? confidence : null,
+        evidence: typeof observation.evidence === "string" ? observation.evidence.trim().slice(0, 500) : "",
+        valid: hasValidConfidence && hasValidValue,
+        reason: !hasValidValue
+          ? "Der erkannte Wert wird vom Matcher nicht unterstützt."
+          : (!hasValidConfidence ? "Die KI hat keine gültige Sicherheit angegeben." : ""),
+      });
+    });
+    return { parsed, unknownCount };
+  }
+
+  function applyAiObservations(rawObservations) {
+    const { parsed, unknownCount } = parseAiObservations(rawObservations);
+    const applicable = parsed.filter((item) => item.valid && item.confidence >= AI_CONFIDENCE_THRESHOLD);
+    const review = parsed.filter((item) => !item.valid || item.confidence < AI_CONFIDENCE_THRESHOLD);
+    const localWarnings = [];
+    const stopOnly = applicable.find((item) => item.key === "stopOnly");
+    const stopOthers = applicable.filter((item) => item.key === "stopOther" || item.key === "stopText");
+
+    if (stopOnly && stopOthers.length) {
+      const strongestOther = stopOthers.reduce((strongest, item) => item.confidence > strongest.confidence ? item : strongest);
+      const losingKeys = stopOnly.confidence === strongestOther.confidence
+        ? new Set(["stopOnly", "stopOther", "stopText"])
+        : (stopOnly.confidence > strongestOther.confidence
+          ? new Set(["stopOther", "stopText"])
+          : new Set(["stopOnly"]));
+      for (let index = applicable.length - 1; index >= 0; index -= 1) {
+        if (!losingKeys.has(applicable[index].key)) continue;
+        review.push({ ...applicable[index], reason: "Widersprüchliche Stoppschild-Erkennung – bitte selbst prüfen." });
+        applicable.splice(index, 1);
+      }
+      localWarnings.push("Die Stoppschild-Erkennung war widersprüchlich. Es wurde höchstens die eindeutig sicherere Variante übernommen.");
+    }
+
+    const applied = [];
+    applicable.forEach((item) => {
+      if (["stopOnly", "stopOther", "stopText"].includes(item.key)) return;
+      const input = elements[item.rule.element];
+      if (!input) return;
+      input.value = item.value;
+      applied.push(item);
+    });
+
+    const acceptedStopOnly = applicable.find((item) => item.key === "stopOnly");
+    const acceptedStopOther = applicable.find((item) => item.key === "stopOther");
+    const acceptedStopText = applicable.find((item) => item.key === "stopText");
+    if (acceptedStopOnly) {
+      elements.matcherStopOnly.checked = true;
+      elements.matcherStopOther.checked = false;
+      elements.matcherStopText.value = "";
+      applied.push(acceptedStopOnly);
+    } else if (acceptedStopOther || acceptedStopText) {
+      elements.matcherStopOnly.checked = false;
+      elements.matcherStopOther.checked = true;
+      if (acceptedStopText) elements.matcherStopText.value = acceptedStopText.value;
+      if (acceptedStopOther) applied.push(acceptedStopOther);
+      if (acceptedStopText) applied.push(acceptedStopText);
+    }
+
+    if (unknownCount) {
+      localWarnings.push(`${unknownCount} nicht unterstützte ${unknownCount === 1 ? "Angabe wurde" : "Angaben wurden"} sicher ignoriert.`);
+    }
+    recomputeMatcher();
+    return { applied, review, localWarnings };
+  }
+
+  function appendAiObservationList(container, title, observations, className) {
+    if (!observations.length) return;
+    const heading = document.createElement("h5");
+    const list = document.createElement("ul");
+    heading.textContent = title;
+    list.className = className;
+    observations.forEach((item) => {
+      const entry = document.createElement("li");
+      const line = document.createElement("div");
+      const label = document.createElement("strong");
+      const confidence = document.createElement("span");
+      const explanation = document.createElement("p");
+      label.textContent = `${item.rule.label}: ${aiValueLabel(item.key, item.value)}`;
+      confidence.textContent = item.confidence === null ? "Sicherheit fehlt" : `${Math.round(item.confidence * 100)} % sicher`;
+      explanation.textContent = item.reason || item.evidence || "Kein zusätzlicher Bildhinweis angegeben.";
+      line.append(label, confidence);
+      entry.append(line, explanation);
+      list.append(entry);
+    });
+    container.append(heading, list);
+  }
+
+  function renderAiAnalysisResult(payload, result) {
+    if (!elements.aiAnalysisResult) return;
+    const header = document.createElement("div");
+    const title = document.createElement("strong");
+    const model = document.createElement("span");
+    const summary = document.createElement("p");
+    title.textContent = "KI-Analyse abgeschlossen";
+    model.textContent = typeof payload.model === "string" && payload.model.trim()
+      ? `Modell: ${payload.model.trim().slice(0, 100)}`
+      : "Lokale Helfer-Verbindung";
+    summary.textContent = typeof payload.summary === "string" && payload.summary.trim()
+      ? payload.summary.trim().slice(0, 1000)
+      : "Die sichtbaren Merkmale wurden ausgewertet.";
+    header.className = "ai-analysis-heading";
+    header.append(title, model);
+
+    const fragment = document.createDocumentFragment();
+    fragment.append(header, summary);
+    appendAiObservationList(fragment, "Automatisch übernommen", result.applied, "ai-observation-list is-applied");
+    appendAiObservationList(fragment, "Bitte selbst prüfen", result.review, "ai-observation-list is-review");
+
+    const responseWarnings = Array.isArray(payload.warnings)
+      ? payload.warnings.filter((warning) => typeof warning === "string" && warning.trim()).slice(0, 10)
+      : [];
+    const warnings = [...result.localWarnings, ...responseWarnings];
+    if (warnings.length) {
+      const warningTitle = document.createElement("h5");
+      const warningList = document.createElement("ul");
+      warningTitle.textContent = "Hinweise und Unsicherheiten";
+      warningList.className = "ai-warning-list";
+      warnings.forEach((warning) => {
+        const item = document.createElement("li");
+        item.textContent = warning.slice(0, 500);
+        warningList.append(item);
+      });
+      fragment.append(warningTitle, warningList);
+    }
+    if (!result.applied.length) {
+      const notice = document.createElement("p");
+      notice.className = "ai-analysis-empty";
+      notice.textContent = "Kein Merkmal war sicher genug für eine automatische Auswahl. Nutze die Hinweise und prüfe die Felder manuell.";
+      fragment.append(notice);
+    }
+    elements.aiAnalysisResult.dataset.state = "success";
+    elements.aiAnalysisResult.replaceChildren(fragment);
+    elements.aiAnalysisResult.hidden = false;
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        if (typeof reader.result === "string") resolve(reader.result);
+        else reject(new Error("Der Screenshot konnte nicht gelesen werden."));
+      }, { once: true });
+      reader.addEventListener("error", () => reject(new Error("Der Screenshot konnte nicht gelesen werden.")), { once: true });
+      reader.addEventListener("abort", () => reject(new Error("Das Einlesen des Screenshots wurde abgebrochen.")), { once: true });
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function analyzeMatcherScreenshot() {
+    if (state.matcher.ai.analyzing) return;
+    const file = elements.roadScreenshot?.files?.[0];
+    const validationError = validateAiImageFile(file);
+    if (validationError) {
+      showAiAnalysisMessage("error", "Bild kann nicht analysiert werden", validationError);
+      updateAiAnalyzeButton();
+      return;
+    }
+
+    state.matcher.ai.analyzing = true;
+    updateAiAnalyzeButton();
+    setAiHelperStatus("checking", "KI-Analyse läuft …");
+    showAiAnalysisMessage("loading", "Screenshot wird analysiert", "Der lokale Helfer überträgt das Bild jetzt an Groq. Das kann einige Sekunden dauern.");
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, AI_HELPER_ANALYSIS_TIMEOUT_MS);
+
+    try {
+      const helperAvailable = await checkAiHelperHealth();
+      if (!helperAvailable) throw new TypeError("Lokaler KI-Helfer nicht erreichbar");
+      setAiHelperStatus("checking", "KI-Analyse läuft …");
+      const imageDataUrl = await fileToDataUrl(file);
+      const response = await fetch(`${AI_HELPER_BASE_URL}/analyze`, {
+        method: "POST",
+        headers: {
+          ...AI_HELPER_HEADER,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imageDataUrl, fileName: file.name || "strassen-screenshot" }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const payload = await readHelperResponse(response);
+      if (!response.ok || payload.ok !== true) throw new Error(helperErrorMessage(response, payload));
+      const result = applyAiObservations(payload.observations);
+      renderAiAnalysisResult(payload, result);
+      setAiHelperStatus("connected", "Lokaler Helfer verbunden · Analyse fertig");
+    } catch (error) {
+      const isNetworkError = error instanceof TypeError;
+      const message = timedOut
+        ? "Die Analyse hat länger als 60 Sekunden gedauert und wurde beendet. Versuche es erneut oder verwende den manuellen Matcher."
+        : (isNetworkError
+          ? "Der lokale KI-Helfer ist nicht erreichbar. Starte die heruntergeladene Datei und versuche es erneut."
+          : (error.message || "Die KI-Analyse konnte nicht abgeschlossen werden."));
+      setAiHelperStatus(isNetworkError || timedOut ? "offline" : "error", isNetworkError || timedOut ? "Lokaler Helfer nicht erreichbar" : "Analyse fehlgeschlagen");
+      showAiAnalysisMessage("error", "KI-Analyse fehlgeschlagen", message);
+    } finally {
+      window.clearTimeout(timeout);
+      state.matcher.ai.analyzing = false;
+      updateAiAnalyzeButton();
+    }
+  }
+
   function clearMatcherScreenshot() {
     if (state.matcher.previewUrl) {
       URL.revokeObjectURL(state.matcher.previewUrl);
@@ -1510,6 +1922,8 @@
     }
     if (elements.matcherPreview) elements.matcherPreview.hidden = true;
     if (elements.roadScreenshot) elements.roadScreenshot.value = "";
+    clearAiAnalysisResult();
+    updateAiAnalyzeButton();
   }
 
   function showMatcherScreenshot() {
@@ -1518,8 +1932,10 @@
       clearMatcherScreenshot();
       return;
     }
-    if (file.type && !file.type.startsWith("image/")) {
+    const validationError = validateAiImageFile(file);
+    if (validationError) {
       clearMatcherScreenshot();
+      showAiAnalysisMessage("error", "Bild kann nicht verwendet werden", validationError);
       return;
     }
     if (state.matcher.previewUrl) URL.revokeObjectURL(state.matcher.previewUrl);
@@ -1529,6 +1945,9 @@
     elements.matcherPreviewImage.setAttribute("src", state.matcher.previewUrl);
     elements.matcherPreviewImage.alt = "Lokale Vorschau: " + state.matcher.imageName;
     elements.matcherPreview.hidden = false;
+    clearAiAnalysisResult();
+    updateAiAnalyzeButton();
+    checkAiHelperHealth();
   }
 
   function setMatcherOpen(open) {
@@ -1552,7 +1971,9 @@
     if (!elements.matcherButton || !elements.roadMatcher) return;
     setMatcherOpen(false);
     elements.matcherButton.addEventListener("click", () => {
-      setMatcherOpen(elements.roadMatcher.getAttribute("aria-hidden") === "true");
+      const open = elements.roadMatcher.getAttribute("aria-hidden") === "true";
+      setMatcherOpen(open);
+      if (open) checkAiHelperHealth();
     });
     const toggleStopCriterion = (target, opposite) => {
       if (!target) return;
@@ -1588,6 +2009,7 @@
     }));
     elements.roadScreenshot?.addEventListener("change", showMatcherScreenshot);
     elements.removeScreenshot?.addEventListener("click", clearMatcherScreenshot);
+    elements.analyzeScreenshotButton?.addEventListener("click", analyzeMatcherScreenshot);
     elements.matcherReset?.addEventListener("click", resetMatcher);
     elements.matcherCandidates?.addEventListener("click", (event) => {
       const exclude = event.target.closest("[data-matcher-exclude]");
@@ -1611,6 +2033,7 @@
     });
     updateMatcherRoadPreview(readMatcherCriteria());
     renderMatcherExcluded();
+    updateAiAnalyzeButton();
   }
 
   function importanceClass(importance) {

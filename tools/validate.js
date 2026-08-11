@@ -205,6 +205,8 @@ assert(Object.keys(COUNTRIES.ATA.visualEvidence.profiles).length === 0, "Unknown
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "style.css"), "utf8");
+const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+const gitignore = fs.readFileSync(path.join(root, ".gitignore"), "utf8");
 const initialCountryPanelMarkup = html.match(/<aside\b[^>]*id=["']countryPanel["'][^>]*>([\s\S]*?)<\/aside>/i)?.[1] || "";
 const initialCountryPanelText = initialCountryPanelMarkup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 assert(initialCountryPanelMarkup, "Initial country panel markup is missing");
@@ -227,6 +229,11 @@ for (const id of matcherIds) {
   const occurrences = html.match(new RegExp(`id=["']${id}["']`, "g")) || [];
   assert(occurrences.length === 1, `Matcher element must exist exactly once: ${id}`);
 }
+const aiHelperIds = ["aiHelperCard", "aiHelperStatus", "analyzeScreenshotButton", "aiAnalysisResult", "downloadAiHelper"];
+for (const id of aiHelperIds) {
+  const occurrences = html.match(new RegExp(`id=["']${id}["']`, "g")) || [];
+  assert(occurrences.length === 1, `Optional AI helper element must exist exactly once: ${id}`);
+}
 const updateNoticeIds = ["updateNotice", "dismissUpdateNotice", "updateNoticeHeading", "updateNoticeText", "updateNoticeTime"];
 for (const id of updateNoticeIds) {
   const occurrences = html.match(new RegExp(`id=["']${id}["']`, "g")) || [];
@@ -234,22 +241,41 @@ for (const id of updateNoticeIds) {
 }
 const updateNoticeMarkup = html.match(/<aside\b[^>]*id=["']updateNotice["'][^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
 assert(/role=["']status["']/i.test(updateNoticeMarkup) && /aria-live=["']polite["']/i.test(updateNoticeMarkup) && /aria-atomic=["']true["']/i.test(updateNoticeMarkup), "Update notice needs an accessible polite live region");
-assert(/data-update-id=["']2026-08-11-kleinere-stoppschild-filter-v1["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-polish version identifier");
-assert(/data-published-at=["']2026-08-11T12:47:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-polish publication timestamp");
+assert(/data-update-id=["']2026-08-11-optionale-groq-ki-v1["']/i.test(updateNoticeMarkup), "Update notice needs the current optional-AI version identifier");
+assert(/data-published-at=["']2026-08-11T14:04:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs the current optional-AI publication timestamp");
 assert(/<button\b[^>]*id=["']dismissUpdateNotice["']/i.test(updateNoticeMarkup), "The complete update notice must be dismissible with a real button");
-assert(/11\. August 2026[^<]*12:47 Uhr/i.test(updateNoticeMarkup), "Update notice must show the current publication date and time without JavaScript");
-assert(/Beschriftung der Stoppschild-Filter/i.test(updateNoticeMarkup) && /kleiner/i.test(updateNoticeMarkup), "Update notice must describe the smaller stop-sign filter labels");
+assert(/11\. August 2026[^<]*14:04 Uhr/i.test(updateNoticeMarkup), "Update notice must show the current publication date and time without JavaScript");
+assert(/optionale KI-Erkennung/i.test(updateNoticeMarkup) && /manuelle Matcher/i.test(updateNoticeMarkup), "Update notice must describe optional AI while preserving manual use");
 assert(/Straßen-Screenshot auswerten/.test(html), "Matcher needs a visible, descriptive German heading");
-assert(/Der Screenshot bleibt lokal/.test(html), "Matcher must explain that screenshots stay local");
-assert(/Wähle nur sichtbare Merkmale aus/.test(html), "Matcher must tell users to select only clues actually visible in the screenshot");
+assert(/manuelle Matcher funktioniert vollständig ohne KI/i.test(html), "Matcher must state that all manual functionality works without AI");
+assert(/nur beim Klick[^<]*Mit KI analysieren/i.test(html), "Matcher must state that AI transfer only starts after a deliberate click");
 assert(/Straßentypen können innerhalb eines Landes variieren/.test(html), "Matcher must disclose that road markings can vary within a country");
 assert(/Weitere visuelle Hinweise/.test(html), "Matcher must expose the expanded visual filters");
 assert(/Konservative Auswertung/.test(html) && /fehlende Daten bleiben/.test(html), "Matcher must explain conservative evidence handling and unknown-data behavior");
-assert(/Screenshot auswählen/.test(html) && /PNG, JPG oder WebP[^<]*nur lokal/.test(html), "Screenshot picker must visibly describe its local image formats");
+assert(/Screenshot auswählen/.test(html) && /PNG, JPG oder WebP[^<]*zunächst nur lokal/.test(html), "Screenshot picker must visibly describe its initially local image formats");
 assert(/Mögliche Länder/.test(html) && /Länder ein- und auszuschließen/.test(html), "Matcher must visibly label its candidate and exclusion workflow");
 assert(/Noch keine Länder ausgeschlossen/.test(html), "Matcher needs an explicit empty exclusion state");
 const screenshotInputMarkup = html.match(/<input\b[^>]*id=["']roadScreenshot["'][^>]*>/i)?.[0] || "";
 assert(/type=["']file["']/i.test(screenshotInputMarkup) && /accept=["']image\/(?:\*|[^"']+)["']/i.test(screenshotInputMarkup), "Screenshot input must be a local image-only file picker");
+const aiHelperCardMarkup = html.match(/<section\b[^>]*id=["']aiHelperCard["'][^>]*>[\s\S]*?<\/section>/i)?.[0] || "";
+const aiHelperStatusMarkup = html.match(/<[^>]+\bid=["']aiHelperStatus["'][^>]*>/i)?.[0] || "";
+const analyzeScreenshotButtonMarkup = html.match(/<button\b[^>]*id=["']analyzeScreenshotButton["'][^>]*>[\s\S]*?<\/button>/i)?.[0] || "";
+const aiAnalysisResultMarkup = html.match(/<[^>]+\bid=["']aiAnalysisResult["'][^>]*>/i)?.[0] || "";
+const downloadAiHelperMarkup = html.match(/<a\b[^>]*id=["']downloadAiHelper["'][^>]*>[\s\S]*?<\/a>/i)?.[0] || "";
+assert(aiHelperCardMarkup, "Optional AI helper card is missing");
+assert(/role=["']status["']/i.test(aiHelperStatusMarkup) && /aria-live=["']polite["']/i.test(aiHelperStatusMarkup) && /data-state=["']unknown["']/i.test(aiHelperStatusMarkup), "AI helper status needs an accessible initial state");
+assert(/type=["']button["']/i.test(analyzeScreenshotButtonMarkup) && /\bdisabled\b/i.test(analyzeScreenshotButtonMarkup), "AI analysis button must start disabled until a supported screenshot exists");
+assert(/aria-live=["']polite["']/i.test(aiAnalysisResultMarkup) && /\bhidden\b/i.test(aiAnalysisResultMarkup), "AI analysis result needs a hidden polite live region");
+assert(/href=["']downloads\/GeoGuessr-KI-Helfer\.exe["']/i.test(downloadAiHelperMarkup), "AI helper download must use the repository-local Windows executable");
+const aiHelperDownloadPath = path.join(root, "downloads", "GeoGuessr-KI-Helfer.exe");
+assert(fs.existsSync(aiHelperDownloadPath) && fs.statSync(aiHelperDownloadPath).size > 100000, "AI helper download is missing or still a placeholder");
+assert(/https:\/\/console\.groq\.com\/keys/i.test(aiHelperCardMarkup), "AI helper card must link to the official Groq key page");
+assert(/Schlüssel[^<]*ausschließlich[^<]*lokalen Helfer/i.test(aiHelperCardMarkup), "AI helper card must explain that the key stays in the local helper");
+assert(/Screenshot[^<]*nur nach deinem Klick[^<]*an Groq/i.test(aiHelperCardMarkup), "AI helper card must disclose click-triggered screenshot transfer to Groq");
+const browserCredentialInputs = (html.match(/<input\b[^>]*>/gi) || []).filter((markup) =>
+  /type=["']password["']|(?:id|name|placeholder|autocomplete)=["'][^"']*(?:api.?key|groq|token|schlüssel)/i.test(markup)
+);
+assert(browserCredentialInputs.length === 0, "The browser UI must never contain an API-key or token input");
 const stopOnlyInputMarkup = html.match(/<input\b[^>]*id=["']matcherStopOnly["'][^>]*>/i)?.[0] || "";
 assert(/type=["']checkbox["']/i.test(stopOnlyInputMarkup), "STOP-only matcher control must be a checkbox");
 const stopOtherInputMarkup = html.match(/<input\b[^>]*id=["']matcherStopOther["'][^>]*>/i)?.[0] || "";
@@ -377,6 +403,19 @@ assert(/syncMatcherFilterChips/.test(script) && /aria-pressed/.test(script), "Ma
 assert(/toggleStopCriterion/.test(script) && /matcherStopOnly[\s\S]{0,120}matcherStopOther|matcherStopOther[\s\S]{0,120}matcherStopOnly/.test(script), "STOP-only and other-text stop-sign controls are not mutually exclusive");
 assert(/toggleMatcherSelectValue\(elements\.matcherEdgeColor,\s*["']white["']\)/.test(script), "White-edge chip must toggle matcherEdgeColor=white");
 assert(/toggleMatcherSelectValue\(elements\.matcherPlateColor,\s*["']white["']\)/.test(script), "White-plate chip must toggle matcherPlateColor=white");
+assert(/checkAiHelperHealth/.test(script) && /analyzeMatcherScreenshot/.test(script) && /applyAiObservations/.test(script), "Optional AI health, analysis, and observation-apply functions are incomplete");
+assert(/http:\/\/127\.0\.0\.1:43117/.test(script), "Browser must address the local helper on the fixed loopback endpoint");
+assert(/X-GeoGuessr-Helper["']?\s*:\s*["']1["']/.test(script), "Local helper requests must include the fixed helper-identification header");
+assert(/\/health/.test(script) && /\/analyze/.test(script), "Browser must use the local helper health and analysis endpoints");
+assert(/imageDataUrl/.test(script) && /fileName/.test(script), "AI analysis request must contain only the documented screenshot fields");
+assert(/AI_CONFIDENCE_THRESHOLD\s*=\s*0\.6\b/.test(script), "AI observations must use the fixed 0.60 confidence threshold");
+assert(/confidence/.test(script) && /unknown/.test(script), "AI observation application must validate confidence and unknown values");
+assert(!/api\.groq\.com|Authorization\s*[:=]|Bearer\s+[A-Za-z0-9._-]+|GROQ_API_KEY/.test(script), "Browser code must not contain Groq credentials or call Groq directly");
+assert(!/localStorage[\s\S]{0,80}(?:api.?key|groq|token|schlüssel)/i.test(script), "Browser storage must never be used for a Groq credential");
+assert(/https:\/\/console\.groq\.com\/keys/.test(readme) && /https:\/\/console\.groq\.com\/docs\/rate-limits/.test(readme), "README must link the official Groq key page and changeable free-tier limits");
+assert(/%LOCALAPPDATA%\\GeoGuessr-KI-Helfer\\groq-key\.dpapi/.test(readme) && /GeoGuessr-KI-Helfer\.exe --reset-key/.test(readme), "README must document the DPAPI location and exact key-reset command");
+assert(/127\.0\.0\.1[^\n]*Computer des jeweiligen Besuchers/i.test(readme), "README must explain why friends cannot use the owner's local helper key");
+assert(/groq-key\.dpapi/.test(gitignore) && /helper\/\*\*\/bin\//.test(gitignore) && /helper\/\*\*\/obj\//.test(gitignore), ".gitignore must protect the local key file and helper build outputs");
 assert(!script.includes("smallBadgeOffsets") && !script.includes("road-badge-base"), "Legacy floating road badges must be removed from the map script");
 assert(css.includes(".map-road-surface") && css.includes(".map-road-neutral-line") && css.includes(".has-selection"), "Final road, neutral, and selection styles are incomplete");
 assert(css.includes(".matcher-advanced-grid") && css.includes(".matcher-evidence") && css.includes(".source-list"), "Expanded matcher and data-quality styles are incomplete");
@@ -389,17 +428,35 @@ for (const relativePath of ["style.css", "data/world-map.js", "data/countries.js
 }
 
 assert(!/<(?:script|link|img|source|iframe)\b[^>]*(?:src|href)\s*=\s*["']https?:\/\//i.test(html), "index.html must not load external assets");
-const matcherClaimText = html
-  .replace(/keine automatische(?:n|r|s)?\s+(?:Bild|Foto|Screenshot)[^.<]*/gi, "")
-  .replace(/nicht automatisch[^.<]*/gi, "");
-assert(!/(?:\bKI\b|\bAI\b).{0,80}(?:erkennt|analysiert|bestimmt|identifiziert)|automatische(?:n|r|s)?\s+(?:Bilderkennung|Bildanalyse|Screenshotanalyse)/is.test(matcherClaimText), "Matcher must not claim automatic or AI-based screenshot recognition");
+assert(/manuelle Matcher funktioniert vollständig ohne KI/i.test(html), "Optional AI must not replace or gate the manual matcher");
 
-for (const file of ["index.html", "style.css", "script.js", "data/countries.js", "data/world-map.js"]) {
+for (const file of ["index.html", "style.css", "data/countries.js", "data/world-map.js"]) {
   const content = fs.readFileSync(path.join(root, file), "utf8");
   assert(!/\bfetch\s*\(|XMLHttpRequest|WebSocket/.test(content), `Network call found in ${file}`);
   assert(!/@import\s+(?:url\()?\s*["']?https?:\/\//i.test(content), `Remote CSS import found in ${file}`);
   assert(!/url\(\s*["']?https?:\/\//i.test(content), `Remote CSS asset found in ${file}`);
   assert(!/[Ã�]|â†|â˜|ï»¿/.test(content), `Encoding artifact found in ${file}`);
+}
+assert(!/@import\s+(?:url\()?\s*["']?https?:\/\//i.test(script) && !/url\(\s*["']?https?:\/\//i.test(script), "Browser script must not load remote assets");
+const browserScriptNetworkText = script
+  .replaceAll("http://127.0.0.1:43117", "")
+  .replaceAll("http://www.w3.org/2000/svg", "");
+assert(!/https?:\/\/[^"'`\s)]+/i.test(browserScriptNetworkText), "Browser script may contact only the fixed loopback helper");
+assert((script.match(/\bfetch\s*\(/g) || []).length >= 2, "Browser script must perform explicit local health and analysis requests");
+assert(!/[Ã�]|â†|â˜|ï»¿/.test(script), "Encoding artifact found in script.js");
+
+const secretScanExtensions = new Set([".cs", ".csproj", ".html", ".js", ".json", ".md", ".ps1", ".py", ".txt", ".xml"]);
+function sourceFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if ([".git", "bin", "downloads", "node_modules", "obj"].includes(entry.name)) return [];
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return sourceFiles(fullPath);
+    return secretScanExtensions.has(path.extname(entry.name).toLowerCase()) ? [fullPath] : [];
+  });
+}
+for (const sourceFile of sourceFiles(root)) {
+  const content = fs.readFileSync(sourceFile, "utf8");
+  assert(!/\bgsk_[A-Za-z0-9]{20,}\b/.test(content), `Potential live Groq API key found in ${path.relative(root, sourceFile)}`);
 }
 
 console.log(JSON.stringify({
@@ -415,6 +472,7 @@ console.log(JSON.stringify({
   sourceBackedVisualProfiles,
   localFlagAssets: localFlagFiles.length,
   matcherControls: matcherIds.length,
+  optionalAiHelperControls: aiHelperIds.length,
   matcherMainClueChips: 4,
   phase3VisualFilters: true,
   phase4EvidenceQuality: true,
@@ -423,7 +481,9 @@ console.log(JSON.stringify({
   versionedUpdateNotice: true,
   pointerCapturedCountrySelection: true,
   neutralInitialCountryPanel: true,
-  matcherNetworkUploads: 0,
+  matcherNetworkUploadsWithoutClick: 0,
+  optionalAiLoopbackOnly: true,
+  browserCredentialInputs: 0,
   floatingRoadBadges: 0,
   externalNetworkCalls: 0,
 }, null, 2));

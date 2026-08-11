@@ -1,0 +1,13 @@
+# Lokale Zugangsdaten und Entwicklerkonfiguration
+.env
+.env.*
+!.env.example
+**/groq-key.dpapi
+**/*secrets*.json
+
+# Lokale .NET-Buildausgaben des KI-Helfers
+helper/**/bin/
+helper/**/obj/
+helper/.publish/
+*.user
+*.suo

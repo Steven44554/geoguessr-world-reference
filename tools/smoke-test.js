@@ -6,6 +6,8 @@ const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const initialCountryPanelMarkup = html.match(/<aside\b[^>]*id=["']countryPanel["'][^>]*>([\s\S]*?)<\/aside>/i)?.[1] || "";
 
+async function main() {
+
 class ClassList {
   constructor(node) {
     this.node = node;
@@ -102,6 +104,10 @@ class TestNode {
     return child;
   }
 
+  append(...children) {
+    children.forEach((child) => this.appendChild(child));
+  }
+
   replaceChildren(...children) {
     this.children = [];
     children.forEach((child) => this.appendChild(child));
@@ -186,6 +192,7 @@ const requiredIds = [
   "whiteEdgeFilterChip", "whitePlateFilterChip", "allFilterChip", "leftTrafficFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
   "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
   "matcherExcludedSummary",
+  "aiHelperCard", "aiHelperStatus", "analyzeScreenshotButton", "aiAnalysisResult", "downloadAiHelper",
   "updateNotice", "dismissUpdateNotice", "updateNoticeHeading", "updateNoticeText", "updateNoticeTime",
 ];
 const nodesById = new Map(requiredIds.map((id) => [id, new TestNode("div", id)]));
@@ -197,9 +204,12 @@ nodesById.get("matcherPreview").hidden = true;
 nodesById.get("roadScreenshot").type = "file";
 nodesById.get("matcherStopOnly").type = "checkbox";
 nodesById.get("matcherStopOther").type = "checkbox";
+nodesById.get("analyzeScreenshotButton").disabled = true;
+nodesById.get("aiAnalysisResult").hidden = true;
+nodesById.get("aiHelperStatus").dataset.state = "unknown";
 nodesById.get("updateNotice").hidden = true;
-nodesById.get("updateNotice").dataset.updateId = "2026-08-11-kleinere-stoppschild-filter-v1";
-nodesById.get("updateNotice").dataset.publishedAt = "2026-08-11T12:47:00+02:00";
+nodesById.get("updateNotice").dataset.updateId = "2026-08-11-optionale-groq-ki-v1";
+nodesById.get("updateNotice").dataset.publishedAt = "2026-08-11T14:04:00+02:00";
 const filtersNode = nodesById.get("filters");
 const allFilterChipNode = nodesById.get("allFilterChip");
 allFilterChipNode.tagName = "button";
@@ -250,6 +260,12 @@ const document = {
   getElementById: (id) => nodesById.get(id) || null,
   createElement: (name) => new TestNode(name),
   createElementNS: (_namespace, name) => new TestNode(name),
+  createDocumentFragment: () => new TestNode("fragment"),
+  createTextNode: (value) => {
+    const node = new TestNode("#text");
+    node.textContent = String(value ?? "");
+    return node;
+  },
   querySelectorAll: (selector) => {
     const requestedSelectors = String(selector).split(",").map((part) => part.trim());
     const matches = [];
@@ -304,8 +320,66 @@ const urlObject = {
     revokedObjectUrls.push(objectUrl);
   },
 };
-const windowObject = { innerWidth: 1600, innerHeight: 900, setTimeout, URL: urlObject };
-const context = { window: windowObject, document, localStorage, console, setTimeout, URL: urlObject };
+class TestFileReader {
+  constructor() {
+    this.listeners = {};
+    this.result = null;
+  }
+
+  addEventListener(type, handler) {
+    (this.listeners[type] ||= []).push(handler);
+  }
+
+  readAsDataURL(file) {
+    this.result = file?.dataUrl || `data:${file?.type || "application/octet-stream"};base64,VEVTVA==`;
+    Promise.resolve().then(() => (this.listeners.load || []).forEach((handler) => handler({ type: "load", target: this })));
+  }
+}
+
+const helperRequests = [];
+let helperOnline = true;
+let nextAnalysisPayload = {
+  ok: true,
+  model: "smoke-test-vision",
+  summary: "Testanalyse ohne echte Netzwerkanfrage.",
+  observations: {},
+  warnings: [],
+};
+
+function helperResponse(payload, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => JSON.stringify(payload),
+  };
+}
+
+async function fetchMock(url, options = {}) {
+  helperRequests.push({ url: String(url), options });
+  if (!helperOnline) throw new TypeError("Failed to fetch local helper");
+  if (String(url) === "http://127.0.0.1:43117/health") {
+    return helperResponse({ ok: true, groqConfigured: true });
+  }
+  if (String(url) === "http://127.0.0.1:43117/analyze") {
+    return helperResponse(nextAnalysisPayload);
+  }
+  throw new Error(`Unexpected network target in smoke test: ${url}`);
+}
+
+const windowObject = { innerWidth: 1600, innerHeight: 900, setTimeout, clearTimeout, URL: urlObject };
+const context = {
+  window: windowObject,
+  document,
+  localStorage,
+  console,
+  setTimeout,
+  clearTimeout,
+  URL: urlObject,
+  fetch: fetchMock,
+  FileReader: TestFileReader,
+  AbortController,
+  TypeError,
+};
 vm.createContext(context);
 for (const relativePath of ["data/world-map.js", "data/countries.js", "script.js"]) {
   vm.runInContext(fs.readFileSync(path.join(root, relativePath), "utf8"), context, { filename: relativePath });
@@ -316,6 +390,16 @@ assert(nodesById.get("matcherRoadPreview").querySelector(".matcher-preview-edge.
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+async function settleAsync(turns = 4) {
+  for (let index = 0; index < turns; index += 1) await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function nodeText(node) {
+  if (!node) return "";
+  return [node.textContent || "", ...node.children.map(nodeText)].join(" ").replace(/\s+/g, " ").trim();
 }
 
 function fire(id, type, additions = {}) {
@@ -366,7 +450,7 @@ function hasMatcherResultClass(node) {
 const updateNotice = nodesById.get("updateNotice");
 const updateNoticeId = updateNotice.dataset.updateId;
 assert(updateNotice.hidden === false, "A newly published version must reveal the update notice");
-assert(/11\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /12:47/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its current Luxembourg publication date and time");
+assert(/11\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /14:04/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its current Luxembourg publication date and time");
 document.dispatchEvent({ type: "keydown", key: "Escape" });
 assert(updateNotice.hidden === true, "Escape must dismiss a visible update notice");
 assert(stored.get("geoguessr-atlas-seen-update-id") === updateNoticeId, "Dismissing the update notice must persist the current version ID");
@@ -628,16 +712,90 @@ assert(/^Alle\b.*werden angezeigt/i.test(nodesById.get("searchSummary").textCont
 
 if (matcher.hidden && !matcher.classList.contains("open")) fire("matcherButton", "click");
 assert(!matcher.hidden || matcher.classList.contains("open"), "Matcher button must reveal the road-screenshot matcher");
+await settleAsync();
+assert(nodesById.get("aiHelperStatus").dataset.state === "connected", "Opening the matcher must detect the mocked local helper");
+assert(nodesById.get("analyzeScreenshotButton").disabled, "AI analysis must stay disabled without a screenshot");
 
 const screenshotInput = nodesById.get("roadScreenshot");
-screenshotInput.files = [{ name: "street-reference.png", type: "image/png", size: 4096 }];
+screenshotInput.files = [{
+  name: "street-reference.png",
+  type: "image/png",
+  size: 4096,
+  dataUrl: "data:image/png;base64,VEVTVF9TQ1JFRU5TSE9U",
+}];
+const analyzeRequestsBeforeSelection = helperRequests.filter((request) => request.url.endsWith("/analyze")).length;
 fire("roadScreenshot", "change");
+await settleAsync();
 const screenshotObjectUrl = nodesById.get("matcherPreviewImage").src;
 assert(screenshotObjectUrl.startsWith("blob:local-test/"), "Screenshot preview must use a local object URL");
 assert(!nodesById.get("matcherPreview").hidden, "Choosing a screenshot must reveal the local preview");
+assert(!nodesById.get("analyzeScreenshotButton").disabled, "A valid screenshot must enable optional AI analysis");
+assert(helperRequests.filter((request) => request.url.endsWith("/analyze")).length === analyzeRequestsBeforeSelection, "Selecting a screenshot must not send it before the deliberate AI click");
+
+// The mocked helper deliberately mixes exact-threshold, low-confidence,
+// unknown, and contradictory STOP observations. This verifies that browser
+// application remains conservative even if the model response is imperfect.
+setMatcherValue("matcherEdgeColor", "white");
+setMatcherValue("matcherPlateColor", "white");
+nextAnalysisPayload = {
+  ok: true,
+  model: "smoke-test-vision",
+  summary: "Rechtsverkehr mit gelber Mittellinie und sichtbarem STOP-Schild.",
+  observations: {
+    traffic: { value: "right", confidence: 0.60, evidence: "Fahrzeuge stehen rechts." },
+    centerColor: { value: "yellow", confidence: 0.91, evidence: "Gelbe Mittellinie sichtbar." },
+    edgeColor: { value: "yellow", confidence: 0.59, evidence: "Randlinie ist unscharf." },
+    plateColor: { value: "unknown", confidence: 0.99, evidence: "Kennzeichen nicht lesbar." },
+    stopOnly: { value: true, confidence: 0.94, evidence: "Nur STOP ist erkennbar." },
+    stopOther: { value: true, confidence: 0.72, evidence: "Unsicherer zweiter Text." },
+    inventedClue: { value: "anything", confidence: 1, evidence: "Unbekannter Schlüssel." },
+  },
+  warnings: [],
+};
+fire("analyzeScreenshotButton", "click");
+await settleAsync(10);
+const analysisRequests = helperRequests.filter((request) => request.url.endsWith("/analyze"));
+assert(analysisRequests.length === analyzeRequestsBeforeSelection + 1, "AI analysis must send exactly one request after the deliberate click");
+const analysisRequest = analysisRequests.at(-1);
+assert(analysisRequest.url === "http://127.0.0.1:43117/analyze", "AI screenshot must only be sent to the fixed loopback helper endpoint");
+assert(analysisRequest.options.method === "POST", "AI helper analysis must use POST");
+assert(analysisRequest.options.headers["X-GeoGuessr-Helper"] === "1", "AI helper analysis must send the required helper-identification header");
+assert(!/authorization|bearer|groq.?key|api.?key/i.test(JSON.stringify(analysisRequest.options.headers)), "Browser request headers must never contain a Groq credential");
+const analysisBody = JSON.parse(analysisRequest.options.body);
+assert(JSON.stringify(Object.keys(analysisBody).sort()) === JSON.stringify(["fileName", "imageDataUrl"]), "AI helper request body must contain only imageDataUrl and fileName");
+assert(analysisBody.fileName === "street-reference.png" && analysisBody.imageDataUrl.startsWith("data:image/png;base64,"), "AI helper request must carry the selected image and safe file name");
+assert(nodesById.get("matcherTraffic").value === "right", "An AI observation at exactly 0.60 confidence must be applied");
+assert(nodesById.get("matcherCenterColor").value === "yellow", "A supported high-confidence AI observation must be applied");
+assert(nodesById.get("matcherEdgeColor").value === "white", "An AI observation below 0.60 must not overwrite an existing manual value");
+assert(nodesById.get("matcherPlateColor").value === "white", "An unknown AI value must not overwrite an existing manual value");
+assert(nodesById.get("matcherStopOnly").checked && !nodesById.get("matcherStopOther").checked, "Contradictory AI STOP observations must remain mutually exclusive and retain only the stronger variant");
+assert(nodesById.get("aiAnalysisResult").dataset.state === "success" && !nodesById.get("aiAnalysisResult").hidden, "Successful AI analysis must expose an accessible result");
+assert(/Automatisch übernommen|Bitte selbst prüfen/i.test(nodeText(nodesById.get("aiAnalysisResult"))), "AI result must distinguish applied observations from values requiring review");
+assert(/nicht unterstützte Angabe/i.test(nodeText(nodesById.get("aiAnalysisResult"))), "Unknown AI observation keys must be reported as safely ignored");
 fire("removeScreenshot", "click");
 assert(nodesById.get("matcherPreview").hidden, "Removing a screenshot must hide its preview");
 assert(revokedObjectUrls.includes(screenshotObjectUrl), "Removing a screenshot must revoke its object URL");
+assert(nodesById.get("aiAnalysisResult").hidden, "Removing a screenshot must clear the visible AI result");
+fire("matcherReset", "click");
+assert(nodesById.get("matcherTraffic").value === "" && nodesById.get("matcherCenterColor").value === "", "Matcher reset must clear AI-applied observations");
+assert(!nodesById.get("matcherStopOnly").checked && !nodesById.get("matcherStopOther").checked, "Matcher reset must clear AI-applied STOP observations");
+
+// Offline AI must fail softly without changing or disabling manual matching.
+helperOnline = false;
+screenshotInput.files = [{ name: "offline-test.webp", type: "image/webp", size: 2048 }];
+fire("roadScreenshot", "change");
+await settleAsync();
+setMatcherValue("matcherPole", "wood");
+fire("analyzeScreenshotButton", "click");
+await settleAsync(10);
+assert(nodesById.get("aiHelperStatus").dataset.state === "offline", "An unreachable local helper must produce an explicit offline state");
+assert(nodesById.get("aiAnalysisResult").dataset.state === "error" && /nicht erreichbar/i.test(nodeText(nodesById.get("aiAnalysisResult"))), "Offline analysis must show a useful local-helper error");
+assert(nodesById.get("matcherPole").value === "wood", "Offline AI must preserve manual matcher selections");
+assert(hasMatcherResultClass(countryShape("GBR")) || hasMatcherResultClass(countryShape("USA")) || nodesById.get("matcherCandidates").innerHTML, "Manual matcher must continue producing results while AI is offline");
+helperOnline = true;
+fire("matcherReset", "click");
+assert(nodesById.get("aiAnalysisResult").hidden && nodesById.get("matcherPole").value === "", "Matcher reset must clear an AI error and all manual criteria");
+assert(nodesById.get("analyzeScreenshotButton").disabled, "Matcher reset must disable AI analysis after clearing the screenshot");
 
 setMatcherValue("matcherCenterColor", "yellow");
 setMatcherValue("matcherCenterStyle", "dashed");
@@ -806,6 +964,14 @@ console.log(JSON.stringify({
   countryPanelSelectionRouting: true,
   pointerCapturedCountrySelection: true,
   matcherLocalScreenshotPreview: true,
+  optionalAiHealthCheck: true,
+  optionalAiClickOnlyUpload: true,
+  optionalAiLoopbackContract: true,
+  optionalAiConfidenceThreshold: 0.60,
+  optionalAiUnknownValuesIgnored: true,
+  optionalAiStopMutualExclusion: true,
+  optionalAiOfflineFallback: true,
+  optionalAiResetBehavior: true,
   matcherRoadCandidates: true,
   matcherManualExclusion: true,
   matcherManualRestore: true,
@@ -831,3 +997,9 @@ console.log(JSON.stringify({
   versionedDismissibleUpdateNotice: true,
   matcherResetPreservesSelection: true,
 }, null, 2));
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

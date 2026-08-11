@@ -1,6 +1,6 @@
 # GeoGuessr World Reference
 
-Ein inoffizieller, interaktiver Länderatlas zum Eingrenzen von Ländern anhand sichtbarer Straßenmerkmale. Die Anwendung verbindet eine anklickbare Weltkarte mit Länderprofilen, Straßen-Schemata, einem visuellen Merkmalsfilter und direkten Länder-Vergleichen. Sie läuft vollständig statisch mit HTML, CSS und JavaScript und benötigt weder Benutzerkonto noch Server.
+Ein inoffizieller, interaktiver Länderatlas zum Eingrenzen von Ländern anhand sichtbarer Straßenmerkmale. Die Anwendung verbindet eine anklickbare Weltkarte mit Länderprofilen, Straßen-Schemata, einem visuellen Merkmalsfilter und direkten Länder-Vergleichen. Die Website selbst läuft vollständig statisch mit HTML, CSS und JavaScript und benötigt weder Benutzerkonto noch Server. Eine optionale KI-Hilfe kann auf dem eigenen Windows-PC zusätzlich gestartet werden; alle manuellen Funktionen bleiben ohne dieses Programm und ohne API-Key verfügbar.
 
 ## Öffentliche Website
 
@@ -14,6 +14,7 @@ Die veröffentlichte Version wird über GitHub Pages bereitgestellt. Änderungen
 - [Zentrale Funktionen](#zentrale-funktionen)
 - [Update-Hinweis](#update-hinweis)
 - [Straßen-Screenshot und Datenschutz](#straßen-screenshot-und-datenschutz)
+- [Optionale lokale KI-Hilfe](#optionale-lokale-ki-hilfe)
 - [Bedienung](#bedienung)
 - [Bewertung, Zuverlässigkeit und Quellen](#bewertung-zuverlässigkeit-und-quellen)
 - [Lokale Nutzung](#lokale-nutzung)
@@ -35,7 +36,7 @@ Sie ist als Referenz- und Lernwerkzeug gedacht:
 - Der Straßen-Matcher sortiert Länder anhand der tatsächlich sichtbaren Hinweise.
 - Der Direktvergleich zeigt Unterschiede zwischen ähnlich wirkenden Ländern.
 
-Die Anwendung versucht nicht, einen Screenshot automatisch durch künstliche Intelligenz zu erkennen. Der Nutzer entscheidet selbst, welche Merkmale eindeutig sichtbar sind. Dadurch bleibt die Auswertung nachvollziehbar und kontrollierbar.
+Ohne Zusatzprogramm entscheidet der Nutzer selbst, welche Merkmale eindeutig sichtbar sind. Dadurch bleibt die manuelle Auswertung nachvollziehbar und kontrollierbar. Wer den lokalen KI-Helfer auf dem eigenen Windows-PC startet, kann einen ausgewählten Screenshot zusätzlich analysieren lassen und die erkannten Merkmale als Vorschlag in den Matcher übernehmen.
 
 ## Zentrale Funktionen
 
@@ -88,6 +89,16 @@ Erweiterte visuelle Hinweise aus Phase 3:
 - dunkle Schildrückseiten
 - auffällig niedrige Kamera-Perspektive
 
+### Optionale KI-Analyse
+
+- funktioniert nur, wenn der Besitzer des PCs den lokalen `GeoGuessr-KI-Helfer` gestartet und dort seinen eigenen Groq-API-Key eingerichtet hat
+- verlangt niemals eine API-Key-Eingabe im Browser
+- analysiert einen Screenshot ausschließlich nach einem bewussten Klick auf die Analyseschaltfläche
+- übernimmt nur bekannte Merkmale mit mindestens `0,60` Modell-Konfidenz
+- lässt unbekannte, widersprüchliche oder schwächer bewertete Merkmale unverändert
+- zeigt das Ergebnis als Vorschlag; die manuelle Kontrolle bleibt weiterhin möglich
+- hat keinen Einfluss auf Freunde oder andere Besucher der öffentlichen Website, bei denen das lokale Programm nicht läuft
+
 ### Datenqualität aus Phase 4
 
 - Hinweise besitzen eine ausgewiesene Zuverlässigkeit.
@@ -110,7 +121,7 @@ Nach einer neuen Website-Version erscheint unten rechts ein kompakter Hinweis mi
 
 ## Straßen-Screenshot und Datenschutz
 
-Der Screenshot-Workflow ist vollständig lokal:
+Der normale Screenshot-Workflow ist vollständig lokal:
 
 1. Über **„Straßen-Screenshot“** wird der Matcher geöffnet.
 2. Mit **„Screenshot auswählen“** wird eine Bilddatei vom eigenen Gerät gewählt.
@@ -118,9 +129,85 @@ Der Screenshot-Workflow ist vollständig lokal:
 4. Die erkennbaren Merkmale werden von Hand in den Auswahlfeldern eingetragen.
 5. Mit **„Bild entfernen“** wird die Vorschau wieder verworfen.
 
-Das ausgewählte Bild wird nicht hochgeladen, nicht an GitHub gesendet und nicht auf einem externen Server analysiert. Die Anwendung benötigt dafür keine Netzwerk-API. Beim Neuladen der Seite verschwindet die lokale Bildvorschau.
+Solange die optionale KI-Analyse nicht angeklickt wird, wird das ausgewählte Bild nicht hochgeladen, nicht an GitHub gesendet und nicht auf einem externen Server analysiert. Beim Neuladen der Seite verschwindet die lokale Bildvorschau.
+
+Nur beim bewussten Klick auf **„Mit KI analysieren“** sendet der Browser das ausgewählte Bild zuerst an `http://127.0.0.1:43117` auf demselben PC. Der lokale Helfer leitet den Screenshot dann zur Bilderkennung an Groq weiter. Für diese Verarbeitung gelten zusätzlich die Bedingungen und Datenschutzregeln von Groq. Der API-Key wird dabei ausschließlich vom lokalen Helfer zur Authentifizierung an Groq gesendet; er gelangt niemals in die Website, in den Browserspeicher, in den Screenshot oder zu GitHub.
 
 > Wichtig: Beim Öffnen externer Quellen verlässt du die Website. Für deren Datenschutz gelten die Bestimmungen der jeweiligen Anbieter.
+
+## Optionale lokale KI-Hilfe
+
+### API-Key erstellen
+
+Der Groq-API-Key wird direkt in der offiziellen Groq-Konsole erstellt:
+
+**[Groq-API-Key erstellen](https://console.groq.com/keys)**
+
+Groq bietet derzeit ein kostenloses Kontingent. Die Limits können sich jedoch jederzeit ändern; maßgeblich ist die [offizielle Übersicht der Groq-Limits](https://console.groq.com/docs/rate-limits). Wird ein kostenloses Limit erreicht, bleibt die Website weiterhin manuell benutzbar und die KI-Analyse kann später erneut versucht werden.
+
+> Gib den API-Key niemals in die Website, die Browser-Konsole, eine GitHub-Datei, einen Commit, einen Screenshot oder einen Chat ein. Der Schlüssel gehört ausschließlich in die verdeckte Abfrage des lokalen Helfers.
+
+### Installation und erster Start
+
+Der bereitgestellte Helfer ist eine einzelne Datei für Windows x64. Er benötigt die **.NET Desktop Runtime 8** und die **ASP.NET Core Runtime 8** in der x64-Ausführung. Falls Windows beim Start ein fehlendes Framework meldet, beide Laufzeiten über die [offizielle .NET-8-Downloadseite](https://dotnet.microsoft.com/download/dotnet/8.0) installieren. Auf dem PC des Projektbesitzers sind die benötigten Frameworks bereits vorhanden.
+
+1. **[GeoGuessr-KI-Helfer für Windows x64 herunterladen](downloads/GeoGuessr-KI-Helfer.exe)**.
+2. Die heruntergeladene `GeoGuessr-KI-Helfer.exe` starten. Der Helfer selbst benötigt keine Installation und muss nicht als Administrator ausgeführt werden.
+3. Beim ersten Start den Groq-API-Key in die verdeckte Konsolenabfrage einfügen und mit Enter bestätigen. Während der Eingabe werden keine Zeichen angezeigt.
+4. Das Fenster geöffnet lassen. Der Helfer lauscht ausschließlich lokal unter `http://127.0.0.1:43117`.
+5. Die Website öffnen, einen Screenshot auswählen und auf **„Mit KI analysieren“** klicken.
+
+Wenn der Helfer nicht läuft oder nicht eingerichtet ist, bleibt die KI-Schaltfläche ohne Funktion beziehungsweise zeigt eine verständliche Fehlermeldung. Karte, Länderprofile, Suche, manuelle Filter und Vergleiche funktionieren davon unabhängig.
+
+### Sichere Speicherung mit Windows-DPAPI
+
+Der Helfer verschlüsselt den API-Key mit der Windows Data Protection API (DPAPI) und speichert nur die verschlüsselte Form unter `%LOCALAPPDATA%\GeoGuessr-KI-Helfer\groq-key.dpapi`. Die Entschlüsselung ist an dasselbe Windows-Benutzerkonto auf demselben PC gebunden. Der Browser kann den gespeicherten Schlüssel nicht auslesen, und im Repository befindet sich kein API-Key.
+
+### API-Key zurücksetzen
+
+1. Den laufenden Helfer beenden.
+2. PowerShell oder die Eingabeaufforderung im Ordner der EXE öffnen.
+3. Folgenden Befehl ausführen:
+
+```powershell
+.\GeoGuessr-KI-Helfer.exe --reset-key
+```
+
+4. Den Helfer anschließend normal neu starten und den neuen Schlüssel in die verdeckte Abfrage eingeben.
+
+### Architektur und Datenfluss
+
+```text
+Statische GitHub-Pages-Website
+        │
+        │ POST /analyze mit Screenshot und X-GeoGuessr-Helper: 1
+        ▼
+http://127.0.0.1:43117 auf dem eigenen PC
+        │
+        │ entschlüsselt den Key per Windows-DPAPI und sendet nur bei Klick
+        ▼
+Groq Vision API
+        │
+        │ strukturierte Beobachtungen mit Wert, Konfidenz und Begründung
+        ▼
+Lokaler Helfer → Browser → vorhandener regelbasierter Länder-Matcher
+```
+
+Die Website ruft niemals die Groq-API direkt auf. Sie sendet keinen API-Key und kennt ihn auch nicht. Der Helfer akzeptiert den Analyseaufruf nur auf der Loopback-Adresse und erwartet den Header `X-GeoGuessr-Helper: 1`. Die Anfrage enthält ausschließlich `imageDataUrl` und `fileName`. Die Antwort enthält `summary`, `observations` und mögliche `warnings`; jedes erkannte Merkmal besitzt `value`, `confidence` und `evidence`. Erst der Browser entscheidet anhand der festen Schwelle `confidence >= 0.60`, welche bekannten Werte in den Matcher übernommen werden. `unknown` und nicht unterstützte Werte werden nicht angewendet.
+
+`127.0.0.1` bezeichnet immer den Computer des jeweiligen Besuchers. Freunde ohne den gestarteten Helfer sehen deshalb lediglich den Offline-Hinweis und können deinen auf deinem PC gespeicherten Schlüssel nicht mitbenutzen. Ihre Karte, Länderprofile und manuellen Filter funktionieren trotzdem vollständig.
+
+### Fehlerhilfe
+
+| Anzeige oder Problem | Lösung |
+| --- | --- |
+| Helfer ist nicht erreichbar | `GeoGuessr-KI-Helfer.exe` starten und das Fenster geöffnet lassen. |
+| Kein Screenshot ausgewählt | Zuerst eine PNG-, JPG- oder WebP-Datei auswählen. |
+| API-Key fehlt oder ist ungültig | Den Schlüssel mit `--reset-key` löschen und den Helfer erneut starten. |
+| Kostenloses Limit erreicht | Die in der Meldung genannte Zeit abwarten und später erneut versuchen. Die manuellen Filter bleiben verfügbar. |
+| Windows meldet ein fehlendes .NET-Framework | .NET Desktop Runtime 8 und ASP.NET Core Runtime 8 für x64 über die oben verlinkte offizielle Microsoft-Seite installieren. |
+| Windows warnt vor einer unbekannten App | Nur die EXE aus diesem Repository verwenden. Im Zweifel nicht starten und den öffentlich einsehbaren Quellcode des Helfers selbst bauen. |
+| KI-Vorschlag wirkt falsch | Unsichere Filter manuell entfernen. Die KI liefert Hinweise, keine garantierte Länderbestimmung. |
 
 ## Bedienung
 
@@ -142,6 +229,8 @@ Das ausgewählte Bild wird nicht hochgeladen, nicht an GitHub gesendet und nicht
 7. Entferne zweifelhafte Filter, falls die Auswahl zu eng geworden ist.
 8. Mit **„Zurücksetzen“** werden alle Matcher-Merkmale entfernt.
 
+Mit laufendem KI-Helfer kann nach Schritt 2 alternativ **„Mit KI analysieren“** angeklickt werden. Prüfe danach die Zusammenfassung und die übernommenen Merkmale. Werte unter `0,60` Konfidenz sowie unbekannte Werte trägt die Website bewusst nicht ein. **„Zurücksetzen“** löscht sowohl die manuell gewählten Merkmale als auch das sichtbare KI-Ergebnis, jedoch weder den verschlüsselt gespeicherten API-Key noch die ausgewählte Länderansicht.
+
 ### Zwei oder mehr Länder vergleichen
 
 1. Füge Länder über die Vergleichsfunktion hinzu oder wähle eine Vorlage.
@@ -150,7 +239,7 @@ Das ausgewählte Bild wird nicht hochgeladen, nicht an GitHub gesendet und nicht
 
 ## Bewertung, Zuverlässigkeit und Quellen
 
-Die Trefferliste ist keine Wahrscheinlichkeitsberechnung und keine automatische Bilderkennung. Sie ist eine regelbasierte, konservative Entscheidungshilfe.
+Die Trefferliste ist keine statistisch kalibrierte Wahrscheinlichkeitsberechnung. Auch nach einer optionalen KI-Analyse bleibt sie eine regelbasierte, konservative Entscheidungshilfe: Die KI schlägt lediglich sichtbare Merkmale vor, während der vorhandene Matcher daraus die Ländergruppen bildet.
 
 | Datenlage | Verhalten im Matcher |
 | --- | --- |
@@ -171,7 +260,7 @@ Im Länderprofil können zu einem Merkmal folgende Angaben erscheinen:
 
 ## Lokale Nutzung
 
-Das Projekt hat keine Build-Stufe und keine Laufzeitabhängigkeiten. Für die eigentliche Website genügt ein moderner Browser.
+Die statische Website hat keine Build-Stufe und keine Laufzeitabhängigkeiten. Für ihre manuellen Funktionen genügt ein moderner Browser. Nur der optionale Windows-Helfer benötigt die oben genannten .NET-8-Laufzeiten.
 
 ### Direkt öffnen
 
@@ -213,12 +302,19 @@ geoguessr-world-reference/
 │   └── flags/
 │       ├── 4x3/                    # lokale SVG-Landesflaggen
 │       └── LICENSE                 # MIT-Lizenz der Flaggenbibliothek
+├── downloads/
+│   └── GeoGuessr-KI-Helfer.exe     # optionales lokales Windows-Programm
+├── helper/
+│   ├── GeoGuessrAiHelper/          # C#-Quellcode des lokalen Helfers
+│   ├── build-helper.ps1            # reproduzierbarer EXE-Build
+│   └── README.md                   # Entwickler- und Selbsttesthinweise
 ├── tools/
 │   ├── validate.js                  # strukturelle und inhaltliche Validierung
 │   ├── smoke-test.js                # browsernaher Interaktions-Smoke-Test
 │   ├── generate-world-map.js        # Kartendaten erzeugen
 │   ├── map-lod-report.js            # Detailstufen der Karte prüfen
 │   └── render-map-preview.js        # Vorschau der Karte erzeugen
+├── .gitignore                       # schließt Schlüssel und Buildausgaben aus
 └── README.md
 ```
 
@@ -262,7 +358,10 @@ Die Validierung kontrolliert unter anderem:
 - gültige Farben, Linienarten, Zuverlässigkeitsstufen und Quellen-URLs
 - Datenmodell der Stoppschilder und erweiterten visuellen Evidenz
 - vorhandene Bedienelemente und verknüpfte Skripte
-- vollständig statischen Betrieb ohne externe Laufzeitressourcen
+- vollständig statischen manuellen Betrieb ohne externe Laufzeitressourcen
+- fehlende Browser-Eingabefelder und Speicherpfade für API-Keys
+- festen Loopback-Endpunkt, Helfer-Header und dokumentierten Anfragevertrag
+- Abwesenheit eines versehentlich eingecheckten Groq-Schlüssels
 
 Der Smoke-Test simuliert zentrale Bedienabläufe:
 
@@ -271,6 +370,12 @@ Der Smoke-Test simuliert zentrale Bedienabläufe:
 - starke Ausschlüsse sowie konservatives Verhalten bei schwacher oder unbekannter Evidenz
 - Vergleich, Favoriten, Kartenzustand und Screenshot-Vorschau
 - Anzeige von Datenqualität und Quellen
+- Screenshot-Übertragung erst nach dem bewussten KI-Klick
+- Übernahme bekannter KI-Merkmale erst ab `0,60` Konfidenz
+- Ignorieren unbekannter oder zu unsicherer KI-Werte
+- gegenseitigen Ausschluss widersprüchlicher Stoppschild-Merkmale
+- verständliches Offline-Verhalten ohne Einschränkung der manuellen Funktionen
+- vollständiges Löschen des sichtbaren KI-Ergebnisses beim Zurücksetzen
 
 Vor einer Veröffentlichung sollten beide Befehle ohne Fehler durchlaufen.
 

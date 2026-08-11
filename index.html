@@ -61,21 +61,24 @@
               <span class="eyebrow">STRAẞEN-MATCHER</span>
               <h2 id="matcherTitle">Straßen-Screenshot auswerten</h2>
             </div>
-            <p>Der Screenshot bleibt lokal und wird nicht automatisch erkannt. Wähle nur sichtbare Merkmale aus; Straßentypen können innerhalb eines Landes variieren.</p>
+            <p>Der manuelle Matcher funktioniert vollständig ohne KI. Nur beim Klick auf „Mit KI analysieren“ wird das ausgewählte Bild über deinen lokalen Helfer ausgewertet. Straßentypen können innerhalb eines Landes variieren.</p>
           </header>
 
           <div class="matcher-workspace">
             <div class="matcher-media">
-              <label class="matcher-upload" for="roadScreenshot">
-                <span class="matcher-upload-icon" aria-hidden="true">＋</span>
-                <strong>Screenshot auswählen</strong>
-                <small>PNG, JPG oder WebP · nur lokal</small>
-              </label>
-              <input id="roadScreenshot" class="visually-hidden" type="file" accept="image/*">
-              <div id="matcherPreview" class="matcher-image-preview" hidden>
-                <img id="matcherPreviewImage" alt="Lokale Vorschau des Straßen-Screenshots">
-                <button id="removeScreenshot" type="button">Bild entfernen</button>
+              <div class="matcher-image-slot">
+                <label class="matcher-upload" for="roadScreenshot">
+                  <span class="matcher-upload-icon" aria-hidden="true">＋</span>
+                  <strong>Screenshot auswählen</strong>
+                  <small>PNG, JPG oder WebP · zunächst nur lokal</small>
+                </label>
+                <input id="roadScreenshot" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp">
+                <div id="matcherPreview" class="matcher-image-preview" hidden>
+                  <img id="matcherPreviewImage" alt="Lokale Vorschau des Straßen-Screenshots">
+                  <button id="removeScreenshot" type="button">Bild entfernen</button>
+                </div>
               </div>
+
             </div>
 
             <fieldset class="matcher-observations">
@@ -169,6 +172,26 @@
               </div>
               <p id="matcherSummary" class="matcher-summary" aria-live="polite">Noch keine Merkmale ausgewählt. Alle Länder bleiben möglich.</p>
             </div>
+
+            <section id="aiHelperCard" class="ai-helper-card" aria-labelledby="aiHelperTitle" aria-describedby="aiHelperPrivacy">
+              <div class="ai-helper-heading">
+                <div>
+                  <span class="eyebrow">OPTIONALE KI-ERKENNUNG</span>
+                  <h3 id="aiHelperTitle">Merkmale automatisch eintragen</h3>
+                </div>
+                <span id="aiHelperStatus" class="ai-helper-status" data-state="unknown" role="status" aria-live="polite">
+                  <span aria-hidden="true"></span>Helfer noch nicht geprüft
+                </span>
+              </div>
+              <p class="ai-helper-intro">Starte den lokalen KI-Helfer und wähle ein Bild. Der manuelle Matcher bleibt jederzeit nutzbar.</p>
+              <div class="ai-helper-actions">
+                <button id="analyzeScreenshotButton" class="ai-analyze-button" type="button" disabled>Mit KI analysieren</button>
+                <a id="downloadAiHelper" class="ai-helper-link" href="downloads/GeoGuessr-KI-Helfer.exe" download>Helfer herunterladen</a>
+                <a class="ai-helper-link" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Kostenlosen Groq-Key erstellen</a>
+              </div>
+              <p id="aiHelperPrivacy" class="ai-helper-privacy"><strong>Datenschutz:</strong> Dein Groq-Schlüssel bleibt ausschließlich im lokalen Helfer auf deinem PC. Der Screenshot wird nur nach deinem Klick über diesen Helfer an Groq übertragen.</p>
+              <div id="aiAnalysisResult" class="ai-analysis-result" aria-live="polite" aria-atomic="false" hidden></div>
+            </section>
           </div>
 
           <details class="matcher-advanced" open>
@@ -317,14 +340,14 @@
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      data-update-id="2026-08-11-kleinere-stoppschild-filter-v1"
-      data-published-at="2026-08-11T12:47:00+02:00"
+      data-update-id="2026-08-11-optionale-groq-ki-v1"
+      data-published-at="2026-08-11T14:04:00+02:00"
       hidden
     >
       <button id="dismissUpdateNotice" class="update-notice-button" type="button" aria-label="Update-Hinweis schließen">
         <span class="update-notice-heading"><strong id="updateNoticeHeading">Website aktualisiert</strong><span aria-hidden="true">×</span></span>
-        <span id="updateNoticeText" class="update-notice-text">Die Beschriftung der Stoppschild-Filter ist jetzt kleiner und ruhiger.</span>
-        <time id="updateNoticeTime" datetime="2026-08-11T12:47:00+02:00">11. August 2026 · 12:47 Uhr</time>
+        <span id="updateNoticeText" class="update-notice-text">Die optionale KI-Erkennung über den lokalen Groq-Helfer ist jetzt verfügbar. Der manuelle Matcher funktioniert weiterhin ohne KI.</span>
+        <time id="updateNoticeTime" datetime="2026-08-11T14:04:00+02:00">11. August 2026 · 14:04 Uhr</time>
         <span class="update-notice-dismiss">Zum Schließen hier klicken</span>
       </button>
     </aside>
