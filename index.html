@@ -33,7 +33,10 @@
 
         <div id="filters" class="filter-strip" aria-label="Kartenfilter">
           <button class="filter-chip active" type="button" data-filter="all" aria-pressed="true">Alle</button>
-          <button id="stopOnlyFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-only aria-controls="matcherStopOnly" aria-pressed="false" title="Stoppschild zeigt ausschließlich STOP und keine weitere Sprache">🛑 STOP-Schild: nur „STOP“</button>
+          <button id="stopOnlyFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-only aria-controls="matcherStopOnly" aria-pressed="false" title="Stoppschild zeigt ausschließlich STOP und keine weitere Sprache"><span class="filter-chip-icon" aria-hidden="true">🛑</span><span>STOP-Schild: nur „STOP“</span></button>
+          <button id="stopOtherFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-other aria-controls="matcherStopOther" aria-pressed="false" title="Stoppschild zeigt einen anderen Text als ausschließlich STOP"><span class="filter-chip-icon" aria-hidden="true">🛑</span><span>Stoppschild: anderer Text als „STOP“</span></button>
+          <button id="whiteEdgeFilterChip" class="filter-chip" type="button" data-matcher-edge-white aria-controls="matcherEdgeColor" aria-pressed="false">Weiße Randlinie</button>
+          <button id="whitePlateFilterChip" class="filter-chip" type="button" data-matcher-plate-white aria-controls="matcherPlateColor" aria-pressed="false">Weiße Kennzeichen</button>
           <button class="filter-chip" type="button" data-filter="traffic:left" aria-pressed="false">Linksverkehr</button>
           <button class="filter-chip" type="button" data-filter="traffic:right" aria-pressed="false">Rechtsverkehr</button>
           <button class="filter-chip" type="button" data-filter="center:gelb" aria-pressed="false">Gelbe Mittellinie</button>
@@ -141,6 +144,10 @@
               <label class="matcher-checkbox" for="matcherStopOnly">
                 <input id="matcherStopOnly" type="checkbox">
                 <span>STOP-Schild: nur „STOP“ <small>(keine weitere Sprache)</small></span>
+              </label>
+              <label class="matcher-checkbox" for="matcherStopOther">
+                <input id="matcherStopOther" type="checkbox">
+                <span>Stoppschild: anderer Text als „STOP“ <small>(z. B. ALTO, PARE oder 止まれ)</small></span>
               </label>
             </fieldset>
 
@@ -310,14 +317,14 @@
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      data-update-id="2026-08-10-flaggen-philippinen-v1"
-      data-published-at="2026-08-10T17:02:00+02:00"
+      data-update-id="2026-08-11-neue-filter-v1"
+      data-published-at="2026-08-11T12:34:00+02:00"
       hidden
     >
       <button id="dismissUpdateNotice" class="update-notice-button" type="button" aria-label="Update-Hinweis schließen">
         <span class="update-notice-heading"><strong id="updateNoticeHeading">Website aktualisiert</strong><span aria-hidden="true">×</span></span>
-        <span id="updateNoticeText" class="update-notice-text">Neue Landesflaggen und philippinische Betonplatten sind jetzt sichtbar.</span>
-        <time id="updateNoticeTime" datetime="2026-08-10T17:02:00+02:00">10. August 2026 · 17:02 Uhr</time>
+        <span id="updateNoticeText" class="update-notice-text">Neue Filter für andere Stoppschild-Texte, weiße Randlinien und weiße Kennzeichen sind jetzt verfügbar.</span>
+        <time id="updateNoticeTime" datetime="2026-08-11T12:34:00+02:00">11. August 2026 · 12:34 Uhr</time>
         <span class="update-notice-dismiss">Zum Schließen hier klicken</span>
       </button>
     </aside>

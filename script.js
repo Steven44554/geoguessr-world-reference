@@ -47,6 +47,7 @@
     matcherPlateColor: document.getElementById("matcherPlateColor"),
     matcherSurface: document.getElementById("matcherSurface"),
     matcherStopOnly: document.getElementById("matcherStopOnly"),
+    matcherStopOther: document.getElementById("matcherStopOther"),
     matcherStopText: document.getElementById("matcherStopText"),
     matcherWarningSign: document.getElementById("matcherWarningSign"),
     matcherPlateLayout: document.getElementById("matcherPlateLayout"),
@@ -56,6 +57,9 @@
     matcherSignBack: document.getElementById("matcherSignBack"),
     matcherCamera: document.getElementById("matcherCamera"),
     stopOnlyFilterChip: document.getElementById("stopOnlyFilterChip"),
+    stopOtherFilterChip: document.getElementById("stopOtherFilterChip"),
+    whiteEdgeFilterChip: document.getElementById("whiteEdgeFilterChip"),
+    whitePlateFilterChip: document.getElementById("whitePlateFilterChip"),
     matcherReset: document.getElementById("matcherReset"),
     matcherSummary: document.getElementById("matcherSummary"),
     matcherRoadPreview: document.getElementById("matcherRoadPreview"),
@@ -654,22 +658,33 @@
     return true;
   }
 
+  function currentSearchTokens() {
+    return normalize(state.searchQuery).split(" ").filter(Boolean);
+  }
+
+  function matchesSearchAndQuickFilters(country, tokens = currentSearchTokens()) {
+    const queryMatches = tokens.length === 0
+      || tokens.every((token) => searchIndexes.get(country.iso3)?.includes(token));
+    const filterMatches = [...state.activeFilters].every((filter) => matchesFilter(country, filter));
+    return queryMatches && filterMatches;
+  }
+
   function updateMapMatches() {
-    const tokens = normalize(state.searchQuery).split(" ").filter(Boolean);
+    const tokens = currentSearchTokens();
+    const matcherCriteriaCount = selectedMatcherCount(readMatcherCriteria());
+    const manualExclusionCount = state.matcher.manualExcluded.size;
     let matchCount = 0;
     elements.map.classList.toggle("has-matcher", state.matcher.active);
 
     countryList.forEach((country) => {
-      const queryMatches = tokens.length === 0 || tokens.every((token) => searchIndexes.get(country.iso3)?.includes(token));
-      const filterMatches = [...state.activeFilters].every((filter) => matchesFilter(country, filter));
-      const matches = queryMatches && filterMatches;
+      const matches = matchesSearchAndQuickFilters(country, tokens);
       const matcherStatus = state.matcher.active ? state.matcher.results.get(country.iso3)?.status : null;
       const matcherExcluded = matcherStatus === "excluded";
       const node = countryElements.get(country.iso3);
       const border = countryBorderElements.get(country.iso3);
       const roadGlyph = roadLineElements.get(country.iso3);
       const matcherTargets = [node, border, roadGlyph].filter(Boolean);
-      if (matches) matchCount += 1;
+      if (matches && !matcherExcluded) matchCount += 1;
       matcherTargets.forEach((target) => {
         target.classList.toggle("is-matcher-match", matcherStatus === "match");
         target.classList.toggle("is-matcher-possible", matcherStatus === "possible");
@@ -683,12 +698,23 @@
       node.classList.toggle("is-match", matches && (tokens.length > 0 || state.activeFilters.size > 0));
     });
 
-    if (tokens.length === 0 && state.activeFilters.size === 0) {
+    if (
+      tokens.length === 0
+      && state.activeFilters.size === 0
+      && matcherCriteriaCount === 0
+      && manualExclusionCount === 0
+    ) {
       elements.searchSummary.textContent = `Alle ${countryList.length} Länder und Gebiete werden angezeigt.`;
     } else {
       const parts = [];
       if (state.searchQuery.trim()) parts.push(`Suche „${state.searchQuery.trim()}“`);
       if (state.activeFilters.size) parts.push(`${state.activeFilters.size} aktive Filter`);
+      if (matcherCriteriaCount) {
+        parts.push(`${matcherCriteriaCount} ${matcherCriteriaCount === 1 ? "Matcher-Merkmal" : "Matcher-Merkmale"}`);
+      }
+      if (manualExclusionCount) {
+        parts.push(`${manualExclusionCount} ${manualExclusionCount === 1 ? "manuell ausgeschlossenes Land" : "manuell ausgeschlossene Länder"}`);
+      }
       elements.searchSummary.textContent = `${matchCount} Treffer für ${parts.join(" · ")}.`;
     }
   }
@@ -702,6 +728,7 @@
     elements.matcherPlateColor,
     elements.matcherSurface,
     elements.matcherStopOnly,
+    elements.matcherStopOther,
     elements.matcherStopText,
     elements.matcherWarningSign,
     elements.matcherPlateLayout,
@@ -722,6 +749,7 @@
       plateColor: elements.matcherPlateColor?.value || "",
       surface: elements.matcherSurface?.value || "",
       stopOnly: Boolean(elements.matcherStopOnly?.checked),
+      stopOther: Boolean(elements.matcherStopOther?.checked),
       stopText: elements.matcherStopText?.value || "",
       warningSign: elements.matcherWarningSign?.value || "",
       plateLayout: elements.matcherPlateLayout?.value || "",
@@ -733,13 +761,24 @@
     };
   }
 
-  function syncStopOnlyFilterChip() {
-    const active = Boolean(elements.matcherStopOnly?.checked);
-    elements.stopOnlyFilterChip?.classList.toggle("active", active);
-    elements.stopOnlyFilterChip?.setAttribute("aria-pressed", String(active));
+  function syncMatcherFilterChips() {
+    const stopOnlyActive = Boolean(elements.matcherStopOnly?.checked);
+    const stopOtherActive = Boolean(elements.matcherStopOther?.checked);
+    const whiteEdgeActive = elements.matcherEdgeColor?.value === "white";
+    const whitePlateActive = elements.matcherPlateColor?.value === "white";
+    elements.stopOnlyFilterChip?.classList.toggle("active", stopOnlyActive);
+    elements.stopOnlyFilterChip?.setAttribute("aria-pressed", String(stopOnlyActive));
+    elements.stopOtherFilterChip?.classList.toggle("active", stopOtherActive);
+    elements.stopOtherFilterChip?.setAttribute("aria-pressed", String(stopOtherActive));
+    elements.whiteEdgeFilterChip?.classList.toggle("active", whiteEdgeActive);
+    elements.whiteEdgeFilterChip?.setAttribute("aria-pressed", String(whiteEdgeActive));
+    elements.whitePlateFilterChip?.classList.toggle("active", whitePlateActive);
+    elements.whitePlateFilterChip?.setAttribute("aria-pressed", String(whitePlateActive));
     const allButton = elements.filters?.querySelector('[data-filter="all"]');
     if (allButton) {
-      const showAll = state.activeFilters.size === 0 && !active;
+      const showAll = state.activeFilters.size === 0
+        && !hasMatcherCriteria(readMatcherCriteria())
+        && state.matcher.manualExcluded.size === 0;
       allButton.classList.toggle("active", showAll);
       allButton.setAttribute("aria-pressed", String(showAll));
     }
@@ -1044,18 +1083,32 @@
 
   function plateProfile(country) {
     const text = normalize(country.licensePlates?.description);
-    const colors = new Set();
+    const descriptionColors = new Set();
     const yellowBackground = /(?:gelbe|gelben|gelber).{0,40}(?:kennzeichen|platten)|(?:vorn|hinten).{0,18}gelb|(?:kennzeichen|[a-z-]*platten)(?: sind|:)?(?:.{0,35})? gelb|reflektierend gelb/.test(text);
     const whiteBackground = /(?:weiße|weisse|weißen|weissen).{0,40}(?:kennzeichen|platten)|(?:vorn|hinten).{0,18}(?:weiß|weiss)|(?:kennzeichen|[a-z-]*platten)(?: sind|:)? (?:weiß|weiss)|helle? platten|überwiegend hell/.test(text);
     const darkBackground = /(?:schwarze|schwarzen|dunkle|dunklen).{0,32}(?:kennzeichen|platten)|(?:kennzeichen|[a-z-]*platten)(?: sind|:)? (?:schwarz|dunkel)/.test(text);
-    if (yellowBackground) colors.add("yellow");
-    if (whiteBackground) colors.add("white");
-    if (darkBackground) colors.add("dark");
-    const strong = country.detailLevel === "priorität"
-      && colors.size > 0
+    if (yellowBackground) descriptionColors.add("yellow");
+    if (whiteBackground) descriptionColors.add("white");
+    if (darkBackground) descriptionColors.add("dark");
+
+    const colors = new Set(descriptionColors);
+    const layoutColors = new Set();
+    const layout = country.visualEvidence?.profiles?.plateLayout;
+    const layoutValues = new Set(layout?.values || []);
+    if (layoutValues.has("white-white") || layoutValues.has("white-yellow")) layoutColors.add("white");
+    if (layoutValues.has("yellow-yellow") || layoutValues.has("white-yellow")) layoutColors.add("yellow");
+    if (layoutValues.has("dark-dark")) layoutColors.add("dark");
+    layoutColors.forEach((color) => colors.add(color));
+
+    const descriptionStrong = country.detailLevel === "priorität"
+      && descriptionColors.size > 0
       && !text.includes("nicht verlasslich")
       && !text.includes("nicht zuverlässig");
-    return { colors, strong };
+    const evidenceStrong = layout?.confidence === "high" && layout?.exclusion === "strong";
+    const reliableColors = new Set();
+    if (descriptionStrong) descriptionColors.forEach((color) => reliableColors.add(color));
+    if (evidenceStrong) layoutColors.forEach((color) => reliableColors.add(color));
+    return { colors, reliableColors, strong: descriptionStrong || evidenceStrong };
   }
 
   function selectedMatcherCount(criteria) {
@@ -1115,9 +1168,13 @@
     if (!excludedReason && criteria.plateColor) {
       const plates = plateProfile(country);
       if (plates.colors.has(criteria.plateColor)) {
-        reliableMatches += 1;
-        score += 22;
-        reasons.push("Kennzeichenfarbe passt");
+        const reliable = plates.reliableColors.has(criteria.plateColor);
+        if (reliable) reliableMatches += 1;
+        else uncertain = true;
+        score += reliable ? 22 : 10;
+        reasons.push(reliable
+          ? "Kennzeichenfarbe passt"
+          : "Kennzeichenfarbe ist möglich, aber nicht sicher genug für einen Ausschluss");
       } else if (plates.strong) {
         excludedReason = "Die dokumentierte Kennzeichenfarbe weicht ab";
       } else {
@@ -1135,6 +1192,23 @@
         reasons.push("STOP-Schild zeigt nur „STOP“");
       } else if (stopSign.format === "local-or-multilingual") {
         excludedReason = stopSign.exclusionReason || "Das übliche Stoppschild enthält eine andere Beschriftung";
+      } else {
+        uncertain = true;
+        reasons.push(stopSign.format === "variable"
+          ? "STOP-Schildtext ist regional unterschiedlich"
+          : "STOP-Schildtext ist nicht sicher erfasst");
+      }
+    }
+
+    if (!excludedReason && criteria.stopOther) {
+      const stopSign = country.stopSign || { format: "unknown" };
+      if (stopSign.format === "local-or-multilingual") {
+        reliableMatches += 1;
+        score += 24;
+        stopSign.sources?.forEach((source) => evidenceSources.add(source));
+        reasons.push("STOP-Schild zeigt einen anderen oder zusätzlichen Text");
+      } else if (stopSign.format === "stop-only") {
+        excludedReason = "Das übliche Stoppschild zeigt ausschließlich „STOP“";
       } else {
         uncertain = true;
         reasons.push(stopSign.format === "variable"
@@ -1220,7 +1294,9 @@
 
     const candidates = countryList
       .map((country) => ({ country, result: state.matcher.results.get(country.iso3) }))
-      .filter((entry) => entry.result && entry.result.status !== "excluded")
+      .filter((entry) => entry.result
+        && entry.result.status !== "excluded"
+        && matchesSearchAndQuickFilters(entry.country))
       .sort((left, right) => {
         const statusOrder = { match: 0, possible: 1 };
         return statusOrder[left.result.status] - statusOrder[right.result.status]
@@ -1267,7 +1343,7 @@
       .map((country) => ({ country, result: state.matcher.results.get(country.iso3) }))
       .filter((entry) => entry.result?.status === "excluded");
     const manual = excluded.filter((entry) => entry.result.manual);
-    const automatic = excluded.filter((entry) => !entry.result.manual);
+    const automatic = excluded.filter((entry) => !entry.result.manual && matchesSearchAndQuickFilters(entry.country));
     const automaticCount = automatic.length;
     if (!excluded.length) {
       elements.matcherExcludedSummary.innerHTML = "";
@@ -1299,17 +1375,35 @@
   }
 
   function renderMatcherSummary(criteria) {
-    if (!state.matcher.active || !hasMatcherCriteria(criteria)) {
+    if (!state.matcher.active) {
       elements.matcherSummary.textContent = "Noch keine Merkmale ausgewählt. Alle Länder bleiben möglich.";
       return;
     }
-    const results = [...state.matcher.results.values()];
+    if (!hasMatcherCriteria(criteria)) {
+      const count = state.matcher.manualExcluded.size;
+      elements.matcherSummary.textContent = count
+        ? `${count} ${count === 1 ? "Land wurde" : "Länder wurden"} manuell ausgeschlossen. Alle übrigen Länder bleiben möglich.`
+        : "Noch keine Merkmale ausgewählt. Alle Länder bleiben möglich.";
+      return;
+    }
+    const results = countryList
+      .filter((country) => matchesSearchAndQuickFilters(country))
+      .map((country) => state.matcher.results.get(country.iso3))
+      .filter(Boolean);
     const matchCount = results.filter((result) => result.status === "match").length;
     const possibleCount = results.filter((result) => result.status === "possible").length;
     const excludedCount = results.filter((result) => result.status === "excluded").length;
     elements.matcherSummary.textContent = matchCount + (matchCount === 1 ? " passt gut · " : " passen gut · ")
       + possibleCount + " noch möglich · "
       + excludedCount + " eher ausgeschlossen. Unsichere Daten bleiben absichtlich in „noch möglich“.";
+  }
+
+  function refreshMatcherResultViews() {
+    if (!state.matcher.active) return;
+    const criteria = readMatcherCriteria();
+    renderMatcherSummary(criteria);
+    renderMatcherCandidates(criteria);
+    renderMatcherExcluded();
   }
 
   function updateMatcherRoadPreview(criteria) {
@@ -1378,7 +1472,7 @@
 
   function recomputeMatcher() {
     const criteria = readMatcherCriteria();
-    syncStopOnlyFilterChip();
+    syncMatcherFilterChips();
     state.matcher.active = hasMatcherCriteria(criteria) || state.matcher.manualExcluded.size > 0;
     state.matcher.results.clear();
     state.matcher.roadCandidates.clear();
@@ -1460,11 +1554,38 @@
     elements.matcherButton.addEventListener("click", () => {
       setMatcherOpen(elements.roadMatcher.getAttribute("aria-hidden") === "true");
     });
-    elements.stopOnlyFilterChip?.addEventListener("click", () => {
-      elements.matcherStopOnly.checked = !elements.matcherStopOnly.checked;
+    const toggleStopCriterion = (target, opposite) => {
+      if (!target) return;
+      target.checked = !target.checked;
+      if (target.checked && opposite) opposite.checked = false;
       recomputeMatcher();
+    };
+    elements.stopOnlyFilterChip?.addEventListener("click", () => {
+      toggleStopCriterion(elements.matcherStopOnly, elements.matcherStopOther);
     });
-    matcherInputs.forEach((input) => input.addEventListener("change", recomputeMatcher));
+    elements.stopOtherFilterChip?.addEventListener("click", () => {
+      toggleStopCriterion(elements.matcherStopOther, elements.matcherStopOnly);
+    });
+    const toggleMatcherSelectValue = (select, value) => {
+      if (!select) return;
+      select.value = select.value === value ? "" : value;
+      recomputeMatcher();
+    };
+    elements.whiteEdgeFilterChip?.addEventListener("click", () => {
+      toggleMatcherSelectValue(elements.matcherEdgeColor, "white");
+    });
+    elements.whitePlateFilterChip?.addEventListener("click", () => {
+      toggleMatcherSelectValue(elements.matcherPlateColor, "white");
+    });
+    matcherInputs.forEach((input) => input.addEventListener("change", () => {
+      if (input === elements.matcherStopOnly && input.checked && elements.matcherStopOther) {
+        elements.matcherStopOther.checked = false;
+      }
+      if (input === elements.matcherStopOther && input.checked && elements.matcherStopOnly) {
+        elements.matcherStopOnly.checked = false;
+      }
+      recomputeMatcher();
+    }));
     elements.roadScreenshot?.addEventListener("change", showMatcherScreenshot);
     elements.removeScreenshot?.addEventListener("click", clearMatcherScreenshot);
     elements.matcherReset?.addEventListener("click", resetMatcher);
@@ -1811,6 +1932,7 @@
     saveFavorites();
     renderPanel(countries[state.selectedIso]);
     updateMapMatches();
+    refreshMatcherResultViews();
     renderBrowser();
   }
 
@@ -2086,6 +2208,7 @@
     elements.search.addEventListener("input", () => {
       state.searchQuery = elements.search.value;
       updateMapMatches();
+      refreshMatcherResultViews();
     });
 
     elements.filters.addEventListener("click", (event) => {
@@ -2094,25 +2217,32 @@
       const filter = button.dataset.filter;
       if (filter === "all") {
         state.activeFilters.clear();
-        const stopFilterWasActive = Boolean(elements.matcherStopOnly?.checked);
-        if (elements.matcherStopOnly) elements.matcherStopOnly.checked = false;
+        const matcherWasActive = hasMatcherCriteria(readMatcherCriteria()) || state.matcher.manualExcluded.size > 0;
+        matcherInputs.forEach((input) => {
+          if (input.type === "checkbox") input.checked = false;
+          else input.value = "";
+        });
+        state.matcher.manualExcluded.clear();
         elements.filters.querySelectorAll(".filter-chip").forEach((chip) => {
           const isAll = chip.dataset.filter === "all";
           chip.classList.toggle("active", isAll);
           chip.setAttribute("aria-pressed", String(isAll));
         });
-        if (stopFilterWasActive) recomputeMatcher();
+        if (matcherWasActive) recomputeMatcher();
       } else {
         if (state.activeFilters.has(filter)) state.activeFilters.delete(filter);
         else state.activeFilters.add(filter);
         button.classList.toggle("active", state.activeFilters.has(filter));
         button.setAttribute("aria-pressed", String(state.activeFilters.has(filter)));
         const allButton = elements.filters.querySelector('[data-filter="all"]');
-        const showAll = state.activeFilters.size === 0 && !elements.matcherStopOnly?.checked;
+        const showAll = state.activeFilters.size === 0
+          && !hasMatcherCriteria(readMatcherCriteria())
+          && state.matcher.manualExcluded.size === 0;
         allButton.classList.toggle("active", showAll);
         allButton.setAttribute("aria-pressed", String(showAll));
       }
       updateMapMatches();
+      refreshMatcherResultViews();
     });
 
     elements.browserButton.addEventListener("click", () => elements.browser.classList.contains("open") ? closeBrowser() : openBrowser());

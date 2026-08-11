@@ -46,7 +46,7 @@ Die Anwendung versucht nicht, einen Screenshot automatisch durch künstliche Int
 - direkt sichtbare Straßenmarkierungs-Symbole auf der Karte
 - Zoom-, Verschiebe- und Rücksetzfunktion
 - Hervorhebung passender, möglicher und ausgeschlossener Länder
-- Suchfeld und Schnellfilter für Kontinente, Verkehr, Landschaft, Markierungen, Kennzeichen und Favoriten
+- Suchfeld und Schnellfilter für Kontinente, Verkehr, Landschaft, Markierungen, Kennzeichen, Stoppschild-Texte und Favoriten
 
 ### Länderprofile
 
@@ -73,7 +73,9 @@ Grundmerkmale:
 - Farbe und Stil der Randlinien
 - Kennzeichenfarbe
 - Asphalt-, Beton- oder Schotteroberfläche
-- Stoppschild ausschließlich mit dem Text „STOP“
+- Stoppschild ausschließlich mit dem Text „STOP“ oder mit einem anderen Text
+
+Direkt über der Karte stehen dafür Schnellfilter für „STOP“ beziehungsweise einen anderen Stoppschild-Text, weiße Randlinien und weiße Kennzeichen bereit.
 
 Erweiterte visuelle Hinweise aus Phase 3:
 

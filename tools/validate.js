@@ -172,6 +172,26 @@ for (const iso3 of ["ITA", "UKR", "TUR", "DNK"]) {
 }
 assert(COUNTRIES.DNK.roadMapPattern.showOnWorld === false, "Denmark's pattern must stay out of the world LOD");
 assert(/vorn und hinten/i.test(COUNTRIES.LUX.licensePlates.description) && /gelb/i.test(COUNTRIES.LUX.licensePlates.description), "Luxembourg must describe yellow plates at both ends");
+for (const iso3 of ["MEX", "BRA", "JPN", "MYS"]) {
+  assert(COUNTRIES[iso3].stopSign.format === "local-or-multilingual", `${iso3} must support the other-text stop-sign filter`);
+  assert(COUNTRIES[iso3].stopSign.confidence === "high" && COUNTRIES[iso3].stopSign.sources.length, `${iso3} other-text stop-sign data must be source-backed`);
+}
+for (const iso3 of ["USA", "GBR", "FRA"]) {
+  assert(COUNTRIES[iso3].stopSign.format === "stop-only", `${iso3} must be excluded by the other-text stop-sign filter`);
+}
+assert(COUNTRIES.CAN.stopSign.format === "variable", "Canada's regional stop-sign text must remain uncertain");
+assert(COUNTRIES.ATA.stopSign.format === "unknown", "Unknown Antarctic stop-sign data must remain uncertain");
+for (const iso3 of ["USA", "DEU", "FRA"]) {
+  assert(COUNTRIES[iso3].roadMapPattern.leftEdge.color === "white" || COUNTRIES[iso3].roadMapPattern.rightEdge.color === "white", `${iso3} must support the white-edge filter`);
+}
+for (const iso3 of ["ZAF", "BWA"]) {
+  assert(COUNTRIES[iso3].roadVerification?.status === "cross-checked", `${iso3} edge-color exclusion must be source-checked`);
+  assert(COUNTRIES[iso3].roadMapPattern.leftEdge.color === "yellow" && COUNTRIES[iso3].roadMapPattern.rightEdge.color === "yellow", `${iso3} must be excluded by the white-edge filter`);
+}
+assert(/weiße[^.]{0,30}kennzeichen/i.test(COUNTRIES.DEU.licensePlates.description), "Germany must support the white-plate filter");
+for (const iso3 of ["NLD", "LUX"]) {
+  assert(/gelb/i.test(COUNTRIES[iso3].licensePlates.description), `${iso3} must be excluded by the white-plate filter`);
+}
 assert(COUNTRIES.USA.visualEvidence.profiles.warningSign.values.includes("diamond-yellow") && COUNTRIES.USA.visualEvidence.profiles.warningSign.confidence === "high", "USA must have a sourced high-confidence yellow-diamond warning-sign profile");
 assert(COUNTRIES.GBR.visualEvidence.profiles.plateLayout.values.includes("white-yellow") && COUNTRIES.GBR.visualEvidence.profiles.plateLayout.sources.length, "Great Britain must have a sourced white/yellow plate profile");
 for (const iso3 of ["NLD", "LUX", "COL"]) {
@@ -198,7 +218,8 @@ assert(!/\bselectCountry\s*\(\s*["']ZAF["']\s*,\s*false\s*,\s*false\s*\)\s*;/.te
 const matcherIds = [
   "matcherButton", "roadMatcher", "roadScreenshot", "matcherPreview", "matcherPreviewImage", "removeScreenshot",
   "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle",
-  "matcherPlateColor", "matcherSurface", "matcherStopOnly", "stopOnlyFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
+  "matcherPlateColor", "matcherSurface", "matcherStopOnly", "matcherStopOther", "stopOnlyFilterChip", "stopOtherFilterChip",
+  "whiteEdgeFilterChip", "whitePlateFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
   "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
   "matcherExcludedSummary",
 ];
@@ -213,10 +234,11 @@ for (const id of updateNoticeIds) {
 }
 const updateNoticeMarkup = html.match(/<aside\b[^>]*id=["']updateNotice["'][^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
 assert(/role=["']status["']/i.test(updateNoticeMarkup) && /aria-live=["']polite["']/i.test(updateNoticeMarkup) && /aria-atomic=["']true["']/i.test(updateNoticeMarkup), "Update notice needs an accessible polite live region");
-assert(/data-update-id=["']2026-08-10-flaggen-philippinen-v1["']/i.test(updateNoticeMarkup), "Update notice needs a stable version identifier");
-assert(/data-published-at=["']2026-08-10T17:02:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs an ISO publication timestamp");
+assert(/data-update-id=["']2026-08-11-neue-filter-v1["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-release version identifier");
+assert(/data-published-at=["']2026-08-11T12:34:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-release publication timestamp");
 assert(/<button\b[^>]*id=["']dismissUpdateNotice["']/i.test(updateNoticeMarkup), "The complete update notice must be dismissible with a real button");
-assert(/10\. August 2026[^<]*17:02 Uhr/i.test(updateNoticeMarkup), "Update notice must show the publication date and time without JavaScript");
+assert(/11\. August 2026[^<]*12:34 Uhr/i.test(updateNoticeMarkup), "Update notice must show the current publication date and time without JavaScript");
+assert(/andere Stoppschild-Texte/i.test(updateNoticeMarkup) && /weiße Randlinien/i.test(updateNoticeMarkup) && /weiße Kennzeichen/i.test(updateNoticeMarkup), "Update notice must describe all three newly published filters");
 assert(/Straßen-Screenshot auswerten/.test(html), "Matcher needs a visible, descriptive German heading");
 assert(/Der Screenshot bleibt lokal/.test(html), "Matcher must explain that screenshots stay local");
 assert(/Wähle nur sichtbare Merkmale aus/.test(html), "Matcher must tell users to select only clues actually visible in the screenshot");
@@ -230,21 +252,50 @@ const screenshotInputMarkup = html.match(/<input\b[^>]*id=["']roadScreenshot["']
 assert(/type=["']file["']/i.test(screenshotInputMarkup) && /accept=["']image\/(?:\*|[^"']+)["']/i.test(screenshotInputMarkup), "Screenshot input must be a local image-only file picker");
 const stopOnlyInputMarkup = html.match(/<input\b[^>]*id=["']matcherStopOnly["'][^>]*>/i)?.[0] || "";
 assert(/type=["']checkbox["']/i.test(stopOnlyInputMarkup), "STOP-only matcher control must be a checkbox");
+const stopOtherInputMarkup = html.match(/<input\b[^>]*id=["']matcherStopOther["'][^>]*>/i)?.[0] || "";
+assert(/type=["']checkbox["']/i.test(stopOtherInputMarkup), "Other-text stop-sign matcher control must be a checkbox");
 const filterStripMarkup = html.match(/<div\b[^>]*id=["']filters["'][^>]*>[\s\S]*?<\/div>/i)?.[0] || "";
 const stopOnlyFilterChipMarkup = html.match(/<button\b[^>]*id=["']stopOnlyFilterChip["'][^>]*>[\s\S]*?<\/button>/i)?.[0] || "";
+const stopOnlyFilterChipOpeningTag = stopOnlyFilterChipMarkup.match(/^<button\b[^>]*>/i)?.[0] || "";
 assert(filterStripMarkup && filterStripMarkup.includes(stopOnlyFilterChipMarkup), "STOP-only filter chip must be directly visible in the main filter strip");
 assert(/class=["'][^"']*\bfilter-chip\b/i.test(stopOnlyFilterChipMarkup), "STOP-only main control must use the standard filter-chip styling");
 assert(/\bdata-matcher-stop-only(?:\s|=|>)/i.test(stopOnlyFilterChipMarkup), "STOP-only filter chip needs its dedicated matcher data attribute");
 assert(!/\bdata-filter\s*=/i.test(stopOnlyFilterChipMarkup), "STOP-only filter chip must not enter the generic country-filter handler");
 assert(/\baria-controls=["']matcherStopOnly["']/i.test(stopOnlyFilterChipMarkup), "STOP-only filter chip must reference its synchronized matcher checkbox");
 assert(/\baria-pressed=["']false["']/i.test(stopOnlyFilterChipMarkup), "STOP-only filter chip must expose its initial toggle state");
-assert(!/(?:\bhidden\b|\baria-hidden=["']true["']|\bdisplay\s*:\s*none\b)/i.test(stopOnlyFilterChipMarkup), "STOP-only filter chip must not be hidden");
+assert(!/(?:\bhidden\b|\baria-hidden=["']true["']|\bdisplay\s*:\s*none\b)/i.test(stopOnlyFilterChipOpeningTag), "STOP-only filter chip must not be hidden");
 const stopOnlyFilterChipText = stopOnlyFilterChipMarkup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 assert(/\bSTOP\b/i.test(stopOnlyFilterChipText) && /Schild/i.test(stopOnlyFilterChipText), "STOP-only filter chip needs a concise visible STOP-sign label");
 const allFilterPosition = filterStripMarkup.search(/\bdata-filter=["']all["']/i);
 const stopOnlyFilterPosition = filterStripMarkup.search(/\bid=["']stopOnlyFilterChip["']/i);
+const stopOtherFilterPosition = filterStripMarkup.search(/\bid=["']stopOtherFilterChip["']/i);
+const whiteEdgeFilterPosition = filterStripMarkup.search(/\bid=["']whiteEdgeFilterChip["']/i);
+const whitePlateFilterPosition = filterStripMarkup.search(/\bid=["']whitePlateFilterChip["']/i);
 const trafficFilterPosition = filterStripMarkup.search(/\bdata-filter=["']traffic:left["']/i);
-assert(allFilterPosition >= 0 && stopOnlyFilterPosition > allFilterPosition && trafficFilterPosition > stopOnlyFilterPosition, "STOP-only filter chip must sit directly after All so it stays visible without horizontal scrolling");
+assert(allFilterPosition >= 0
+  && stopOnlyFilterPosition > allFilterPosition
+  && stopOtherFilterPosition > stopOnlyFilterPosition
+  && whiteEdgeFilterPosition > stopOtherFilterPosition
+  && whitePlateFilterPosition > whiteEdgeFilterPosition
+  && trafficFilterPosition > whitePlateFilterPosition,
+"All four matcher-backed chips must sit directly after All so they stay visible without horizontal scrolling");
+
+for (const [id, dataAttribute, controlId, labelPattern] of [
+  ["stopOtherFilterChip", "data-matcher-stop-other", "matcherStopOther", /Stoppschild[\s\S]*anderer Text[\s\S]*STOP/i],
+  ["whiteEdgeFilterChip", "data-matcher-edge-white", "matcherEdgeColor", /Weiße Randlinie/i],
+  ["whitePlateFilterChip", "data-matcher-plate-white", "matcherPlateColor", /Weiße Kennzeichen/i],
+]) {
+  const markup = html.match(new RegExp(`<button\\b[^>]*id=["']${id}["'][^>]*>[\\s\\S]*?<\\/button>`, "i"))?.[0] || "";
+  const openingTag = markup.match(/^<button\b[^>]*>/i)?.[0] || "";
+  assert(filterStripMarkup.includes(markup), `${id} must be directly visible in the main filter strip`);
+  assert(/class=["'][^"']*\bfilter-chip\b/i.test(markup), `${id} must use the standard filter-chip styling`);
+  assert(new RegExp(`\\b${dataAttribute}(?:\\s|=|>)`, "i").test(markup), `${id} needs its dedicated matcher data attribute`);
+  assert(!/\bdata-filter\s*=/i.test(markup), `${id} must not enter the generic country-filter handler`);
+  assert(new RegExp(`\\baria-controls=["']${controlId}["']`, "i").test(markup), `${id} must reference ${controlId}`);
+  assert(/\baria-pressed=["']false["']/i.test(markup), `${id} must expose its initial toggle state`);
+  assert(!/(?:\bhidden\b|\baria-hidden=["']true["']|\bdisplay\s*:\s*none\b)/i.test(openingTag), `${id} must not be hidden`);
+  assert(labelPattern.test(markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()), `${id} needs its expected visible German label`);
+}
 const visibleHtmlText = html
   .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
   .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
@@ -314,11 +365,18 @@ assert(/road-slab-joints/.test(script) && /concrete-slabs/.test(script), "Philip
 assert(/selectionIso/.test(script) && /event\.target\.closest\?\.\(\"\[data-iso\]\"\)/.test(script), "Pointer-captured map clicks are not routed back to the selected country");
 assert(/matcherCenterColor/.test(script) && /matcherEdgeStyle/.test(script) && /matcherPlateColor/.test(script) && /matcherSurface/.test(script), "Matcher does not evaluate all visible clue controls");
 assert(/matcherStopOnly/.test(script) && /\.checked\b/.test(script), "Matcher does not evaluate the STOP-only checkbox state");
+assert(/matcherStopOther/.test(script) && /criteria\.stopOther/.test(script) && /local-or-multilingual/.test(script), "Matcher does not evaluate the other-text stop-sign checkbox state");
 assert(/matcherStopText/.test(script) && /matcherWarningSign/.test(script) && /matcherPlateLayout/.test(script), "Matcher does not evaluate the strong expanded visual controls");
 assert(/matcherBollard/.test(script) && /matcherPole/.test(script) && /matcherShoulder/.test(script) && /matcherSignBack/.test(script) && /matcherCamera/.test(script), "Matcher does not evaluate the soft expanded visual controls");
 assert(/evaluateVisualEvidence/.test(script) && /verifiedMatches/.test(script) && /sourceCount/.test(script), "Matcher lacks confidence-aware visual-evidence evaluation");
 assert(/renderDataQuality/.test(script) && /Datenqualität und Quellen/.test(script), "Country panel lacks evidence quality and source rendering");
-assert(/stopOnlyFilterChip/.test(script) && /aria-pressed/.test(script), "Main STOP-only filter chip is not synchronized by the application script");
+for (const id of ["stopOnlyFilterChip", "stopOtherFilterChip", "whiteEdgeFilterChip", "whitePlateFilterChip"]) {
+  assert(script.includes(id), `Main matcher filter chip is not synchronized by the application script: ${id}`);
+}
+assert(/syncMatcherFilterChips/.test(script) && /aria-pressed/.test(script), "Main matcher filter chips are not synchronized by the application script");
+assert(/toggleStopCriterion/.test(script) && /matcherStopOnly[\s\S]{0,120}matcherStopOther|matcherStopOther[\s\S]{0,120}matcherStopOnly/.test(script), "STOP-only and other-text stop-sign controls are not mutually exclusive");
+assert(/toggleMatcherSelectValue\(elements\.matcherEdgeColor,\s*["']white["']\)/.test(script), "White-edge chip must toggle matcherEdgeColor=white");
+assert(/toggleMatcherSelectValue\(elements\.matcherPlateColor,\s*["']white["']\)/.test(script), "White-plate chip must toggle matcherPlateColor=white");
 assert(!script.includes("smallBadgeOffsets") && !script.includes("road-badge-base"), "Legacy floating road badges must be removed from the map script");
 assert(css.includes(".map-road-surface") && css.includes(".map-road-neutral-line") && css.includes(".has-selection"), "Final road, neutral, and selection styles are incomplete");
 assert(css.includes(".matcher-advanced-grid") && css.includes(".matcher-evidence") && css.includes(".source-list"), "Expanded matcher and data-quality styles are incomplete");
@@ -356,6 +414,7 @@ console.log(JSON.stringify({
   sourceBackedVisualProfiles,
   localFlagAssets: localFlagFiles.length,
   matcherControls: matcherIds.length,
+  matcherMainClueChips: 4,
   phase3VisualFilters: true,
   phase4EvidenceQuality: true,
   selectedCountryFlags: true,

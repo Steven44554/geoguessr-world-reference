@@ -266,8 +266,17 @@ kbd {
 }
 
 .stop-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border-color: rgba(190, 91, 84, 0.58);
   color: #e0bbb7;
+}
+
+.filter-chip-icon {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  line-height: 1;
 }
 
 .stop-filter-chip:hover {

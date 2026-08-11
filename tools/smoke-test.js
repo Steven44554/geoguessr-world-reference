@@ -146,9 +146,13 @@ class TestNode {
 
   querySelectorAll(selector) {
     const classes = selector.startsWith(".") ? selector.slice(1).split(".") : null;
+    const dataSelector = selector.match(/^\[data-([a-z0-9-]+)(?:=(?:"([^"]*)"|'([^']*)'))?\]$/i);
+    const dataKey = dataSelector?.[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    const expectedDataValue = dataSelector ? (dataSelector[2] ?? dataSelector[3]) : undefined;
     const results = [];
     const visit = (node) => {
       if (classes && classes.every((className) => node.classList.contains(className))) results.push(node);
+      if (dataSelector && node.dataset[dataKey] !== undefined && (expectedDataValue === undefined || node.dataset[dataKey] === expectedDataValue)) results.push(node);
       node.children.forEach(visit);
     };
     this.children.forEach(visit);
@@ -178,7 +182,8 @@ const requiredIds = [
   "compareSelect1", "compareSelect2", "compareSelect3", "zoomIn", "zoomOut", "resetZoom",
   "matcherButton", "roadMatcher", "roadScreenshot", "matcherPreview", "matcherPreviewImage", "removeScreenshot",
   "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle",
-  "matcherPlateColor", "matcherSurface", "matcherStopOnly", "stopOnlyFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
+  "matcherPlateColor", "matcherSurface", "matcherStopOnly", "matcherStopOther", "stopOnlyFilterChip", "stopOtherFilterChip",
+  "whiteEdgeFilterChip", "whitePlateFilterChip", "allFilterChip", "leftTrafficFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
   "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
   "matcherExcludedSummary",
   "updateNotice", "dismissUpdateNotice", "updateNoticeHeading", "updateNoticeText", "updateNoticeTime",
@@ -191,16 +196,39 @@ nodesById.get("matcherButton").setAttribute("aria-expanded", "false");
 nodesById.get("matcherPreview").hidden = true;
 nodesById.get("roadScreenshot").type = "file";
 nodesById.get("matcherStopOnly").type = "checkbox";
+nodesById.get("matcherStopOther").type = "checkbox";
 nodesById.get("updateNotice").hidden = true;
-nodesById.get("updateNotice").dataset.updateId = "2026-08-10-flaggen-philippinen-v1";
-nodesById.get("updateNotice").dataset.publishedAt = "2026-08-10T17:02:00+02:00";
-const stopOnlyFilterChipNode = nodesById.get("stopOnlyFilterChip");
-stopOnlyFilterChipNode.tagName = "button";
-stopOnlyFilterChipNode.classList.add("filter-chip");
-stopOnlyFilterChipNode.dataset.matcherStopOnly = "";
-stopOnlyFilterChipNode.setAttribute("aria-controls", "matcherStopOnly");
-stopOnlyFilterChipNode.setAttribute("aria-pressed", "false");
-nodesById.get("filters").appendChild(stopOnlyFilterChipNode);
+nodesById.get("updateNotice").dataset.updateId = "2026-08-11-neue-filter-v1";
+nodesById.get("updateNotice").dataset.publishedAt = "2026-08-11T12:34:00+02:00";
+const filtersNode = nodesById.get("filters");
+const allFilterChipNode = nodesById.get("allFilterChip");
+allFilterChipNode.tagName = "button";
+allFilterChipNode.classList.add("filter-chip", "active");
+allFilterChipNode.dataset.filter = "all";
+allFilterChipNode.setAttribute("aria-pressed", "true");
+filtersNode.appendChild(allFilterChipNode);
+
+function configureMatcherFilterChip(id, dataKey, controlId) {
+  const chip = nodesById.get(id);
+  chip.tagName = "button";
+  chip.classList.add("filter-chip");
+  chip.dataset[dataKey] = "";
+  chip.setAttribute("aria-controls", controlId);
+  chip.setAttribute("aria-pressed", "false");
+  filtersNode.appendChild(chip);
+  return chip;
+}
+
+configureMatcherFilterChip("stopOnlyFilterChip", "matcherStopOnly", "matcherStopOnly");
+configureMatcherFilterChip("stopOtherFilterChip", "matcherStopOther", "matcherStopOther");
+configureMatcherFilterChip("whiteEdgeFilterChip", "matcherEdgeWhite", "matcherEdgeColor");
+configureMatcherFilterChip("whitePlateFilterChip", "matcherPlateWhite", "matcherPlateColor");
+const leftTrafficFilterChipNode = nodesById.get("leftTrafficFilterChip");
+leftTrafficFilterChipNode.tagName = "button";
+leftTrafficFilterChipNode.classList.add("filter-chip");
+leftTrafficFilterChipNode.dataset.filter = "traffic:left";
+leftTrafficFilterChipNode.setAttribute("aria-pressed", "false");
+filtersNode.appendChild(leftTrafficFilterChipNode);
 for (const classes of [
   ["matcher-preview-ground"],
   ["matcher-preview-road"],
@@ -236,8 +264,9 @@ const document = {
       ".matcher-observations input[type=\"checkbox\"]",
       ".matcher-observations input[type='checkbox']",
       "#matcherStopOnly",
+      "#matcherStopOther",
     ].includes(part))) {
-      matches.push(nodesById.get("matcherStopOnly"));
+      matches.push(nodesById.get("matcherStopOnly"), nodesById.get("matcherStopOther"));
     }
     return [...new Set(matches)];
   },
@@ -310,6 +339,18 @@ function countryShape(iso3) {
   return nodesById.get("countryPaths").children.find((node) => node.dataset.iso === iso3);
 }
 
+function countryMapNode(iso3) {
+  return countryShape(iso3)
+    || nodesById.get("smallCountryMarkers").children.find((node) => node.dataset.iso === iso3);
+}
+
+function allCountryMapNodes() {
+  return [
+    ...nodesById.get("countryPaths").children,
+    ...nodesById.get("smallCountryMarkers").children,
+  ];
+}
+
 function assertPanelCountry(iso3, name) {
   const markup = nodesById.get("countryPanel").innerHTML;
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -325,7 +366,7 @@ function hasMatcherResultClass(node) {
 const updateNotice = nodesById.get("updateNotice");
 const updateNoticeId = updateNotice.dataset.updateId;
 assert(updateNotice.hidden === false, "A newly published version must reveal the update notice");
-assert(/10\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /17:02/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its Luxembourg publication date and time");
+assert(/11\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /12:34/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its current Luxembourg publication date and time");
 document.dispatchEvent({ type: "keydown", key: "Escape" });
 assert(updateNotice.hidden === true, "Escape must dismiss a visible update notice");
 assert(stored.get("geoguessr-atlas-seen-update-id") === updateNoticeId, "Dismissing the update notice must persist the current version ID");
@@ -432,22 +473,159 @@ assert(!/assets\/flags\/4x3\/ru\.svg/.test(philippinesPanelMarkup), "The Philipp
 // The matcher uses a locally shown screenshot as a visual reference. The actual
 // country filtering is deterministic and driven only by the selected clues.
 const matcher = nodesById.get("roadMatcher");
+const allFilterChip = nodesById.get("allFilterChip");
 const mainStopOnlyChip = nodesById.get("stopOnlyFilterChip");
+const mainStopOtherChip = nodesById.get("stopOtherFilterChip");
+const mainWhiteEdgeChip = nodesById.get("whiteEdgeFilterChip");
+const mainWhitePlateChip = nodesById.get("whitePlateFilterChip");
 const stopOnlyCheckbox = nodesById.get("matcherStopOnly");
+const stopOtherCheckbox = nodesById.get("matcherStopOther");
 assert(stopOnlyCheckbox.checked === false, "STOP-only matcher checkbox must start disabled");
+assert(stopOtherCheckbox.checked === false, "Other-text stop-sign matcher checkbox must start disabled");
 assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Main STOP-only filter chip must start inactive");
+assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Main other-text stop-sign filter chip must start inactive");
+assert(mainWhiteEdgeChip.getAttribute("aria-pressed") === "false" && !mainWhiteEdgeChip.classList.contains("active"), "Main white-edge filter chip must start inactive");
+assert(mainWhitePlateChip.getAttribute("aria-pressed") === "false" && !mainWhitePlateChip.classList.contains("active"), "Main white-plate filter chip must start inactive");
+assert(allFilterChip.getAttribute("aria-pressed") === "true" && allFilterChip.classList.contains("active"), "All must start active while no matcher clues are selected");
+
 clickWithBubble("stopOnlyFilterChip", "filters");
 assert(stopOnlyCheckbox.checked === true, "Clicking the visible STOP-only filter chip must enable the matcher checkbox");
+assert(stopOtherCheckbox.checked === false, "Enabling STOP-only must leave the opposite stop-sign criterion disabled");
 assert(mainStopOnlyChip.getAttribute("aria-pressed") === "true" && mainStopOnlyChip.classList.contains("active"), "Active STOP-only filter chip must synchronize its ARIA and visual states");
+assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "STOP-only activation must leave the other-text chip inactive");
+assert(allFilterChip.getAttribute("aria-pressed") === "false" && !allFilterChip.classList.contains("active"), "All must deactivate when a matcher-backed main chip is active");
 assert(!countryShape("USA").classList.contains("is-matcher-excluded"), "The visible STOP-only filter chip must run the matcher and retain the USA");
 assert(countryShape("MEX").classList.contains("is-matcher-excluded"), "The visible STOP-only filter chip must run the matcher and exclude Mexico's ALTO sign");
-clickWithBubble("stopOnlyFilterChip", "filters");
-assert(stopOnlyCheckbox.checked === false, "Clicking the active STOP-only filter chip again must disable the matcher checkbox");
-assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Inactive STOP-only filter chip must synchronize its ARIA and visual states");
-clickWithBubble("stopOnlyFilterChip", "filters");
+
+clickWithBubble("stopOtherFilterChip", "filters");
+assert(stopOnlyCheckbox.checked === false, "Enabling other-text stop signs from the main chip must disable STOP-only");
+assert(stopOtherCheckbox.checked === true, "Clicking the other-text stop-sign chip must enable its matcher checkbox");
+assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Other-text activation must deactivate the STOP-only chip");
+assert(mainStopOtherChip.getAttribute("aria-pressed") === "true" && mainStopOtherChip.classList.contains("active"), "Other-text stop-sign chip must synchronize its ARIA and visual states");
+for (const iso3 of ["MEX", "BRA", "JPN", "MYS"]) {
+  assert(countryShape(iso3).classList.contains("is-matcher-match"), `${iso3} must exactly match the sourced other-text stop-sign filter`);
+}
+for (const iso3 of ["USA", "GBR", "FRA"]) {
+  assert(countryShape(iso3).classList.contains("is-matcher-excluded"), `${iso3} must be excluded because its sourced sign shows only STOP`);
+}
+assert(countryShape("CAN").classList.contains("is-matcher-possible"), "Canada's regionally variable stop-sign text must remain possible");
+assert(countryShape("ATA").classList.contains("is-matcher-possible"), "Unknown stop-sign text must remain possible for the other-text filter");
+
+clickWithBubble("stopOtherFilterChip", "filters");
+assert(stopOtherCheckbox.checked === false, "Clicking the active other-text stop-sign chip again must disable it");
+assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Disabled other-text stop-sign chip must synchronize its ARIA and visual states");
+assert(allFilterChip.getAttribute("aria-pressed") === "true" && allFilterChip.classList.contains("active"), "All must reactivate after the final matcher-backed chip is switched off");
+
+stopOtherCheckbox.checked = true;
+fire("matcherStopOther", "change");
+stopOnlyCheckbox.checked = true;
+fire("matcherStopOnly", "change");
+assert(stopOnlyCheckbox.checked === true && stopOtherCheckbox.checked === false, "Changing the STOP-only checkbox directly must disable the other-text checkbox");
+assert(mainStopOnlyChip.classList.contains("active") && !mainStopOtherChip.classList.contains("active"), "Direct checkbox changes must synchronize both stop-sign chips");
 fire("matcherReset", "click");
 assert(stopOnlyCheckbox.checked === false, "Matcher reset must disable the checkbox activated by the main STOP-only filter chip");
+assert(stopOtherCheckbox.checked === false, "Matcher reset must disable the other-text stop-sign checkbox");
 assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Matcher reset must also deactivate the main STOP-only filter chip");
+assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Matcher reset must also deactivate the main other-text filter chip");
+
+clickWithBubble("whiteEdgeFilterChip", "filters");
+assert(nodesById.get("matcherEdgeColor").value === "white", "Clicking the white-edge chip must select matcherEdgeColor=white");
+assert(mainWhiteEdgeChip.getAttribute("aria-pressed") === "true" && mainWhiteEdgeChip.classList.contains("active"), "White-edge chip must synchronize its ARIA and visual states");
+assert(countryShape("USA").classList.contains("is-matcher-match"), "The USA must exactly match its sourced white edge lines");
+assert(countryShape("ZAF").classList.contains("is-matcher-excluded"), "South Africa's sourced yellow edge lines must be excluded by the white-edge filter");
+assert(countryShape("BWA").classList.contains("is-matcher-excluded"), "Botswana's sourced yellow edge lines must be excluded by the white-edge filter");
+assert(countryShape("ATA").classList.contains("is-matcher-possible"), "Unknown road-line data must remain possible for the white-edge filter");
+clickWithBubble("whiteEdgeFilterChip", "filters");
+assert(nodesById.get("matcherEdgeColor").value === "", "Clicking the active white-edge chip again must clear matcherEdgeColor");
+assert(mainWhiteEdgeChip.getAttribute("aria-pressed") === "false" && !mainWhiteEdgeChip.classList.contains("active"), "Cleared white-edge chip must synchronize its ARIA and visual states");
+setMatcherValue("matcherEdgeColor", "white");
+assert(mainWhiteEdgeChip.classList.contains("active") && mainWhiteEdgeChip.getAttribute("aria-pressed") === "true", "Selecting white edges in the matcher must activate the main chip");
+setMatcherValue("matcherEdgeColor", "yellow");
+assert(!mainWhiteEdgeChip.classList.contains("active") && mainWhiteEdgeChip.getAttribute("aria-pressed") === "false", "Changing the matcher away from white edges must deactivate the main chip");
+fire("matcherReset", "click");
+
+clickWithBubble("whitePlateFilterChip", "filters");
+assert(nodesById.get("matcherPlateColor").value === "white", "Clicking the white-plate chip must select matcherPlateColor=white");
+assert(mainWhitePlateChip.getAttribute("aria-pressed") === "true" && mainWhitePlateChip.classList.contains("active"), "White-plate chip must synchronize its ARIA and visual states");
+assert(countryShape("DEU").classList.contains("is-matcher-match"), "Germany must exactly match its documented white plates");
+assert(countryShape("NLD").classList.contains("is-matcher-excluded"), "The Netherlands' documented yellow plates must be excluded by the white-plate filter");
+assert(countryShape("LUX").classList.contains("is-matcher-excluded"), "Luxembourg's documented yellow plates must be excluded by the white-plate filter");
+assert(countryShape("MYS").classList.contains("is-matcher-excluded"), "Malaysia's white characters on dark plates must not be mistaken for a white plate background");
+assert(countryShape("USA").classList.contains("is-matcher-possible"), "Variable US plate data must remain possible for the white-plate filter");
+assert(countryShape("ATA").classList.contains("is-matcher-possible"), "Unknown plate data must remain possible for the white-plate filter");
+clickWithBubble("whitePlateFilterChip", "filters");
+assert(nodesById.get("matcherPlateColor").value === "", "Clicking the active white-plate chip again must clear matcherPlateColor");
+assert(mainWhitePlateChip.getAttribute("aria-pressed") === "false" && !mainWhitePlateChip.classList.contains("active"), "Cleared white-plate chip must synchronize its ARIA and visual states");
+setMatcherValue("matcherPlateColor", "white");
+assert(mainWhitePlateChip.classList.contains("active") && mainWhitePlateChip.getAttribute("aria-pressed") === "true", "Selecting white plates in the matcher must activate the main chip");
+setMatcherValue("matcherPlateColor", "yellow");
+assert(!mainWhitePlateChip.classList.contains("active") && mainWhitePlateChip.getAttribute("aria-pressed") === "false", "Changing the matcher away from white plates must deactivate the main chip");
+fire("matcherReset", "click");
+
+clickWithBubble("stopOtherFilterChip", "filters");
+clickWithBubble("whiteEdgeFilterChip", "filters");
+clickWithBubble("whitePlateFilterChip", "filters");
+assert(stopOtherCheckbox.checked && nodesById.get("matcherEdgeColor").value === "white" && nodesById.get("matcherPlateColor").value === "white", "Three matcher-backed main chips must be combinable");
+clickWithBubble("allFilterChip", "filters");
+assert(!stopOnlyCheckbox.checked && !stopOtherCheckbox.checked, "All must clear both stop-sign matcher checkboxes");
+assert(nodesById.get("matcherEdgeColor").value === "" && nodesById.get("matcherPlateColor").value === "", "All must clear matcher values set by the white clue chips");
+for (const chip of [mainStopOnlyChip, mainStopOtherChip, mainWhiteEdgeChip, mainWhitePlateChip]) {
+  assert(!chip.classList.contains("active") && chip.getAttribute("aria-pressed") === "false", "All must deactivate every matcher-backed main chip");
+}
+assert(allFilterChip.classList.contains("active") && allFilterChip.getAttribute("aria-pressed") === "true", "All must synchronize its active and ARIA states after clearing matcher chips");
+for (const layer of [paths, borders, overlays]) {
+  assert(!layer.querySelectorAll(".is-matcher-match").length && !layer.querySelectorAll(".is-matcher-possible").length && !layer.querySelectorAll(".is-matcher-excluded").length, "All must clear every matcher result class");
+}
+
+// Quick filters and matcher clues must produce one shared intersection in the
+// map, result cards, and numerical matcher summary.
+clickWithBubble("whitePlateFilterChip", "filters");
+clickWithBubble("leftTrafficFilterChip", "filters");
+const mixedFilterCandidates = nodesById.get("matcherCandidates").innerHTML;
+assert(/data-iso=["']GBR["']/.test(mixedFilterCandidates), "Left-hand traffic plus white plates must retain Great Britain in the candidate list");
+assert(!/data-iso=["']DEU["']/.test(mixedFilterCandidates), "A right-driving white-plate country must not remain in the mixed-filter candidate list");
+assert(!countryMapNode("GBR").classList.contains("is-dimmed"), "Great Britain must remain visible on the map for the mixed filter intersection");
+assert(countryMapNode("DEU").classList.contains("is-dimmed"), "Germany must be dimmed on the map by the left-traffic quick filter");
+
+const mixedCandidateIso3 = [...mixedFilterCandidates.matchAll(/<article\b[^>]*data-iso=["']([A-Z]{3})["']/g)].map((match) => match[1]);
+assert(mixedCandidateIso3.length > 0, "Mixed quick and matcher filters must render at least one candidate card");
+mixedCandidateIso3.forEach((iso3) => {
+  const node = countryMapNode(iso3);
+  assert(node && node.classList.contains("is-match") && !node.classList.contains("is-dimmed") && !node.classList.contains("is-matcher-excluded"), `${iso3} candidate card must belong to the same visible map intersection`);
+});
+
+const mixedMapNodes = allCountryMapNodes().filter((node) => node.classList.contains("is-match"));
+const mixedMapCounts = {
+  match: mixedMapNodes.filter((node) => node.classList.contains("is-matcher-match")).length,
+  possible: mixedMapNodes.filter((node) => node.classList.contains("is-matcher-possible")).length,
+  excluded: mixedMapNodes.filter((node) => node.classList.contains("is-matcher-excluded")).length,
+};
+const mixedSummaryText = nodesById.get("matcherSummary").textContent;
+const mixedSummaryCounts = mixedSummaryText.match(/^(\d+) (?:passt|passen) gut · (\d+) noch möglich · (\d+) eher ausgeschlossen/);
+assert(mixedSummaryCounts, "Mixed-filter matcher summary must expose exact match, possible, and excluded counts");
+assert(Number(mixedSummaryCounts[1]) === mixedMapCounts.match, "Matcher summary exact matches must use the quick-filter map intersection");
+assert(Number(mixedSummaryCounts[2]) === mixedMapCounts.possible, "Matcher summary possible matches must use the quick-filter map intersection");
+assert(Number(mixedSummaryCounts[3]) === mixedMapCounts.excluded, "Matcher summary exclusions must use the quick-filter map intersection");
+clickWithBubble("allFilterChip", "filters");
+
+// A manual exclusion is itself an active restriction even when no matcher
+// criteria or quick filters are selected.
+const manualOnlyExclude = new TestNode("button");
+manualOnlyExclude.dataset.matcherExclude = "ZAF";
+fire("matcherCandidates", "click", { target: manualOnlyExclude });
+const manualOnlySearchSummary = nodesById.get("searchSummary").textContent;
+assert(countryMapNode("ZAF").classList.contains("is-matcher-excluded"), "A manual-only exclusion must reach the map");
+assert(!/^Alle\b.*werden angezeigt/i.test(manualOnlySearchSummary), "Search summary must not claim that all countries are displayed during a manual-only exclusion");
+assert(/1 manuell ausgeschlossenes Land/i.test(manualOnlySearchSummary), "Search summary must name the single manual-only exclusion");
+assert(manualOnlySearchSummary.includes(`${allCountryMapNodes().length - 1} Treffer`), "Search summary hit count must omit the manually excluded country");
+assert(!allFilterChip.classList.contains("active") && allFilterChip.getAttribute("aria-pressed") === "false", "A manual-only exclusion must deactivate All");
+
+const manualOnlyRestore = new TestNode("button");
+manualOnlyRestore.dataset.matcherRestore = "ZAF";
+fire("matcherExcludedSummary", "click", { target: manualOnlyRestore });
+assert(!countryMapNode("ZAF").classList.contains("is-matcher-excluded"), "Restoring a manual-only exclusion must return the country to the map");
+assert(/^Alle\b.*werden angezeigt/i.test(nodesById.get("searchSummary").textContent), "Restoring the sole manual exclusion must restore the neutral search summary");
+
 if (matcher.hidden && !matcher.classList.contains("open")) fire("matcherButton", "click");
 assert(!matcher.hidden || matcher.classList.contains("open"), "Matcher button must reveal the road-screenshot matcher");
 
@@ -513,6 +691,11 @@ fire("matcherReset", "click");
 for (const id of matcherSelectIds) {
   assert(nodesById.get(id).value === "", `Matcher reset must clear ${id}`);
 }
+assert(!stopOnlyCheckbox.checked && !stopOtherCheckbox.checked, "Matcher reset must clear both stop-sign checkboxes");
+for (const chip of [mainStopOnlyChip, mainStopOtherChip, mainWhiteEdgeChip, mainWhitePlateChip]) {
+  assert(!chip.classList.contains("active") && chip.getAttribute("aria-pressed") === "false", "Matcher reset must deactivate all matcher-backed main chips");
+}
+assert(allFilterChip.classList.contains("active") && allFilterChip.getAttribute("aria-pressed") === "true", "Matcher reset must reactivate All when no other filters remain");
 for (const layer of [paths, borders, overlays]) {
   assert(!layer.querySelectorAll(".is-matcher-match").length, "Matcher reset must remove exact-match classes");
   assert(!layer.querySelectorAll(".is-matcher-possible").length, "Matcher reset must remove possible-match classes");
@@ -542,6 +725,7 @@ assert(!hasMatcherResultClass(countryShape("NLD")) && !countryShape("NLD").class
 
 stopOnlyCheckbox.checked = true;
 fire("matcherStopOnly", "change");
+assert(stopOtherCheckbox.checked === false, "Direct STOP-only checkbox activation must keep other-text stop signs disabled");
 assert(mainStopOnlyChip.getAttribute("aria-pressed") === "true" && mainStopOnlyChip.classList.contains("active"), "Changing the matcher checkbox must activate the visible STOP-only filter chip");
 assert(hasMatcherResultClass(countryShape("USA")), "A country with STOP-only signs must remain a matcher candidate");
 assert(!countryShape("USA").classList.contains("is-matcher-excluded"), "The STOP-only clue must not exclude the USA");
@@ -550,7 +734,9 @@ assert(countryShape("MEX").classList.contains("is-matcher-excluded"), "STOP-only
 assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), "Countries without stop-sign text data must remain possible instead of being hard-excluded");
 fire("matcherReset", "click");
 assert(stopOnlyCheckbox.checked === false, "Matcher reset must disable the STOP-only checkbox");
+assert(stopOtherCheckbox.checked === false, "Matcher reset must keep the other-text stop-sign checkbox disabled");
 assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Matcher reset must keep the main STOP-only filter chip synchronized");
+assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Matcher reset must keep the other-text stop-sign chip synchronized");
 
 setMatcherValue("matcherStopText", "pare");
 assert(hasMatcherResultClass(countryShape("BRA")) && !countryShape("BRA").classList.contains("is-matcher-excluded"), "PARE must retain Brazil as a sourced stop-sign candidate");
@@ -631,6 +817,12 @@ console.log(JSON.stringify({
   matcherPlateBackgrounds: true,
   matcherStopSignText: true,
   matcherStopMainFilterSync: true,
+  matcherOtherStopTextFilter: true,
+  matcherWhiteEdgeMainFilter: true,
+  matcherWhitePlateMainFilter: true,
+  matcherMainFilterAllReset: true,
+  matcherQuickFilterIntersection: true,
+  manualOnlyExclusionSummary: true,
   matcherExpandedVisualFilters: true,
   matcherEvidenceConservativeExclusion: true,
   countryPanelEvidenceSources: true,
