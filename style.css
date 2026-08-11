@@ -279,6 +279,10 @@ kbd {
   line-height: 1;
 }
 
+.stop-filter-chip > span:last-child {
+  font-size: 0.66rem;
+}
+
 .stop-filter-chip:hover {
   border-color: #cf7770;
   color: #f2d4d1;

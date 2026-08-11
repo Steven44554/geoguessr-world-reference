@@ -234,11 +234,11 @@ for (const id of updateNoticeIds) {
 }
 const updateNoticeMarkup = html.match(/<aside\b[^>]*id=["']updateNotice["'][^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
 assert(/role=["']status["']/i.test(updateNoticeMarkup) && /aria-live=["']polite["']/i.test(updateNoticeMarkup) && /aria-atomic=["']true["']/i.test(updateNoticeMarkup), "Update notice needs an accessible polite live region");
-assert(/data-update-id=["']2026-08-11-neue-filter-v1["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-release version identifier");
-assert(/data-published-at=["']2026-08-11T12:34:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-release publication timestamp");
+assert(/data-update-id=["']2026-08-11-kleinere-stoppschild-filter-v1["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-polish version identifier");
+assert(/data-published-at=["']2026-08-11T12:47:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs the current filter-polish publication timestamp");
 assert(/<button\b[^>]*id=["']dismissUpdateNotice["']/i.test(updateNoticeMarkup), "The complete update notice must be dismissible with a real button");
-assert(/11\. August 2026[^<]*12:34 Uhr/i.test(updateNoticeMarkup), "Update notice must show the current publication date and time without JavaScript");
-assert(/andere Stoppschild-Texte/i.test(updateNoticeMarkup) && /weiße Randlinien/i.test(updateNoticeMarkup) && /weiße Kennzeichen/i.test(updateNoticeMarkup), "Update notice must describe all three newly published filters");
+assert(/11\. August 2026[^<]*12:47 Uhr/i.test(updateNoticeMarkup), "Update notice must show the current publication date and time without JavaScript");
+assert(/Beschriftung der Stoppschild-Filter/i.test(updateNoticeMarkup) && /kleiner/i.test(updateNoticeMarkup), "Update notice must describe the smaller stop-sign filter labels");
 assert(/Straßen-Screenshot auswerten/.test(html), "Matcher needs a visible, descriptive German heading");
 assert(/Der Screenshot bleibt lokal/.test(html), "Matcher must explain that screenshots stay local");
 assert(/Wähle nur sichtbare Merkmale aus/.test(html), "Matcher must tell users to select only clues actually visible in the screenshot");
@@ -381,6 +381,7 @@ assert(!script.includes("smallBadgeOffsets") && !script.includes("road-badge-bas
 assert(css.includes(".map-road-surface") && css.includes(".map-road-neutral-line") && css.includes(".has-selection"), "Final road, neutral, and selection styles are incomplete");
 assert(css.includes(".matcher-advanced-grid") && css.includes(".matcher-evidence") && css.includes(".source-list"), "Expanded matcher and data-quality styles are incomplete");
 assert(css.includes(".country-flag") && css.includes(".update-notice") && css.includes(".road-slab-joints"), "Flag, update-notice, or concrete-slab styles are incomplete");
+assert(/\.stop-filter-chip\s*>\s*span:last-child\s*\{[^}]*font-size:\s*0\.66rem/i.test(css), "Stop-sign filter text must remain slightly smaller than the other filter labels");
 assert(!css.includes("road-badge-base") && !css.includes("road-badge-leader"), "Legacy road badge styles must be removed");
 for (const relativePath of ["style.css", "data/world-map.js", "data/countries.js", "script.js"]) {
   assert(html.includes(relativePath), `index.html does not reference ${relativePath}`);
