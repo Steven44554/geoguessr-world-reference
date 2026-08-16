@@ -55,7 +55,7 @@ Das Filter-Arbeitsfeld bleibt dauerhaft sichtbar und ist in fünf Kategorien auf
 
 Unvereinbare Optionen ersetzen sich automatisch. So können nicht versehentlich Links- und Rechtsverkehr, mehrere Kontinente oder verschiedene Varianten desselben Straßenobjekts gleichzeitig gewählt werden. Landschafts- und Fahrzeugmerkmale bleiben kombinierbar. **„Filter löschen“** entfernt die komplette Auswahl mit einem Klick. Nicht erfasste Objekt- und Kamera-Merkmale gelten weiterhin als unbekannt und nicht automatisch als Gegenbeweis.
 
-Neu hinzugekommen sind unter anderem sichtbare Sprachen, gelbe Rauten- und Dreiecksschilder, Kennzeichenanordnungen, Leitpfosten-Muster, Holz- und Betonmasten, Schildrückseiten, verschiedene Straßenränder sowie eine auffällig niedrige Kameraposition. Die Kategorien lassen sich per Maus, Touch und Pfeiltasten bedienen.
+Neu hinzugekommen sind unter anderem sichtbare Sprachen, gelbe Rauten- und Dreiecksschilder, Kennzeichenanordnungen, Leitpfosten-Muster, Holz- und Betonmasten, Schildrückseiten, verschiedene Straßenränder sowie eine auffällig niedrige Kameraposition. Die Kategorien lassen sich per Klick und Pfeiltasten bedienen. Bleibt der Mauszeiger über dem Filterfeld, wechselt eine einzelne Mausrad- oder Touchpad-Geste automatisch genau eine Kategorie vor oder zurück.
 
 ### Google-Car- und Kamera-Meta
 
@@ -239,6 +239,13 @@ Der Helfer begrenzt die Antwort auf höchstens 24 Bildmerkmale, 5 wahrscheinlich
 | KI-Vorschlag wirkt falsch | Bildmerkmale, Konfidenzen und Gründe prüfen. Unsichere Länder nur als „möglich“ behandeln oder die Analyse zurücksetzen. Die KI liefert keine garantierte Standortbestimmung. |
 
 ## Bedienung
+
+### Filter mit einer Hand bedienen
+
+1. Lass den Mauszeiger über den eigentlichen Filterkarten stehen.
+2. Scrolle einmal nach unten, um von **Basis** zu **Straße** und danach zu den folgenden Kategorien zu wechseln.
+3. Scrolle nach oben, um genau eine Kategorie zurückzugehen.
+4. Eine länger auslaufende Touchpad-Geste löst nur einen Wechsel aus. Am ersten und letzten Reiter scrollt die Seite normal weiter, damit der Filterbereich keine Scroll-Falle bildet.
 
 ### Ein Land direkt untersuchen
 

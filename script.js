@@ -24,6 +24,8 @@
     filterResultCount: document.getElementById("filterResultCount"),
     activeFilterCount: document.getElementById("activeFilterCount"),
     activeFilterSummary: document.getElementById("activeFilterSummary"),
+    filterScrollHint: document.getElementById("filterScrollHint"),
+    filterCategoryPosition: document.getElementById("filterCategoryPosition"),
     allFilterChip: document.getElementById("allFilterChip"),
     filters: document.getElementById("filters"),
     matcherButton: document.getElementById("matcherButton"),
@@ -3349,6 +3351,10 @@
     document.getElementById("resetZoom").addEventListener("click", resetZoom);
   }
 
+  const FILTER_WHEEL_THRESHOLD = 48;
+  const FILTER_WHEEL_GESTURE_GAP = 220;
+  const filterWheelGesture = { delta: 0, direction: 0, lastEventAt: null, switched: false, releasedAtBoundary: false };
+
   function selectFilterTab(tabKey, moveFocus = false) {
     const tabs = Array.from(elements.filterDashboard?.querySelectorAll("[data-filter-tab]") || []);
     const panels = Array.from(elements.filterDashboard?.querySelectorAll("[data-filter-panel]") || []);
@@ -3365,7 +3371,67 @@
       panel.hidden = !active;
       panel.classList.toggle("active", active);
     });
+    const selectedIndex = tabs.indexOf(selectedTab);
+    if (elements.filterCategoryPosition) elements.filterCategoryPosition.textContent = `${selectedIndex + 1} / ${tabs.length}`;
+    elements.filterScrollHint?.setAttribute("data-category-position", String(selectedIndex + 1));
+    elements.filters?.setAttribute("data-active-filter-tab", selectedTab.dataset.filterTab);
     if (moveFocus) selectedTab.focus();
+  }
+
+  function filterWheelDelta(event) {
+    if (event.deltaMode === 1) return event.deltaY * 16;
+    if (event.deltaMode === 2) return event.deltaY * 100;
+    return event.deltaY;
+  }
+
+  function switchFilterTabWithWheel(event) {
+    const rawDeltaY = Number(event.deltaY) || 0;
+    if (!rawDeltaY || event.ctrlKey || event.shiftKey || Math.abs(rawDeltaY) <= Math.abs(event.deltaX || 0)) return;
+    if (event.target.closest?.('input[type="range"], textarea, select')) return;
+
+    const tabs = Array.from(elements.filterDashboard?.querySelectorAll("[data-filter-tab]") || []);
+    const currentIndex = tabs.findIndex((tab) => tab.getAttribute("aria-selected") === "true");
+    if (currentIndex < 0) return;
+
+    const now = Number.isFinite(event.timeStamp) ? event.timeStamp : Date.now();
+    if (filterWheelGesture.lastEventAt === null
+      || now < filterWheelGesture.lastEventAt
+      || now - filterWheelGesture.lastEventAt > FILTER_WHEEL_GESTURE_GAP) {
+      filterWheelGesture.delta = 0;
+      filterWheelGesture.direction = 0;
+      filterWheelGesture.switched = false;
+      filterWheelGesture.releasedAtBoundary = false;
+    }
+    filterWheelGesture.lastEventAt = now;
+
+    if (filterWheelGesture.releasedAtBoundary) return;
+    if (filterWheelGesture.switched) {
+      event.preventDefault();
+      return;
+    }
+
+    const delta = filterWheelDelta(event);
+    const direction = delta > 0 ? 1 : -1;
+    const atOuterBoundary = (currentIndex === 0 && direction < 0)
+      || (currentIndex === tabs.length - 1 && direction > 0);
+    if (atOuterBoundary) {
+      filterWheelGesture.delta = 0;
+      filterWheelGesture.direction = 0;
+      filterWheelGesture.releasedAtBoundary = true;
+      return;
+    }
+
+    event.preventDefault();
+    if (filterWheelGesture.direction && filterWheelGesture.direction !== direction) filterWheelGesture.delta = 0;
+    filterWheelGesture.direction = direction;
+    filterWheelGesture.delta += delta;
+    if (Math.abs(filterWheelGesture.delta) < FILTER_WHEEL_THRESHOLD) return;
+
+    const activePanel = elements.filterDashboard?.querySelector(`[data-filter-panel="${tabs[currentIndex].dataset.filterTab}"]`);
+    const moveFocus = Boolean(activePanel?.contains(document.activeElement) || tabs.includes(document.activeElement));
+    selectFilterTab(tabs[currentIndex + direction].dataset.filterTab, moveFocus);
+    filterWheelGesture.delta = 0;
+    filterWheelGesture.switched = true;
   }
 
   function bindInterface() {
@@ -3376,6 +3442,7 @@
     });
 
     selectFilterTab("basis");
+    elements.filters?.addEventListener("wheel", switchFilterTabWithWheel, { passive: false });
     elements.filterDashboard?.addEventListener("click", (event) => {
       const categoryTab = event.target.closest?.("[data-filter-tab]");
       if (categoryTab) {
@@ -3406,12 +3473,12 @@
 
     elements.filterDashboard?.addEventListener("keydown", (event) => {
       const currentTab = event.target.closest?.("[data-filter-tab]");
-      if (!currentTab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      if (!currentTab || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
       const tabs = Array.from(elements.filterDashboard.querySelectorAll("[data-filter-tab]"));
       const currentIndex = tabs.indexOf(currentTab);
       let nextIndex = currentIndex;
-      if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-      if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+      if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (currentIndex + 1) % tabs.length;
       if (event.key === "Home") nextIndex = 0;
       if (event.key === "End") nextIndex = tabs.length - 1;
       event.preventDefault();

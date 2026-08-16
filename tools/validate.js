@@ -344,7 +344,7 @@ for (const id of screenshotAnalysisIds) {
   assert(occurrences.length === 1, `Screenshot-analysis or main-filter element must exist exactly once: ${id}`);
 }
 const filterDashboardIds = [
-  "filterDashboard", "filterPanel", "filterResultCount", "activeFilterCount", "activeFilterSummary", "allFilterChip",
+  "filterDashboard", "filterPanel", "filterResultCount", "activeFilterCount", "activeFilterSummary", "allFilterChip", "filterScrollHint", "filterCategoryPosition",
 ];
 for (const id of filterDashboardIds) {
   const occurrences = html.match(new RegExp(`id=["']${id}["']`, "g")) || [];
@@ -574,7 +574,7 @@ for (const id of filterDashboardIds) {
 assert(/syncMatcherFilterChips/.test(script) && /aria-pressed/.test(script), "Main matcher filter chips are not synchronized by the application script");
 assert(/selectFilterTab/.test(script) && /aria-selected/.test(script) && /data-filter-panel/.test(script), "Filter category tabs must synchronize selected tabs and visible panels");
 assert(/activeFilterCount/.test(script) && /activeFilterSummary/.test(script), "Combined active-filter count and summary are not updated by the application script");
-assert(/keydown/.test(script) && /ArrowLeft/.test(script) && /ArrowRight/.test(script) && /Home/.test(script) && /End/.test(script), "Filter category tabs must support keyboard navigation");
+assert(/keydown/.test(script) && /ArrowLeft/.test(script) && /ArrowRight/.test(script) && /ArrowUp/.test(script) && /ArrowDown/.test(script) && /Home/.test(script) && /End/.test(script), "Filter category tabs must support horizontal and vertical keyboard navigation");
 assert(/quick\.stopOnly\s*=\s*!quick\.stopOnly[\s\S]{0,120}quick\.stopOther\s*=\s*false[\s\S]{0,220}quick\.stopOther\s*=\s*!quick\.stopOther[\s\S]{0,120}quick\.stopOnly\s*=\s*false/.test(script), "Independent STOP-only and other-text main filters must remain mutually exclusive");
 assert(/quick\.edgeColor\s*=\s*quick\.edgeColor\s*===\s*["']white["']\s*\?\s*["']["']\s*:\s*["']white["']/.test(script), "White-edge main filter must toggle its independent quick criterion");
 assert(/quick\.plateColor\s*=\s*quick\.plateColor\s*===\s*["']white["']\s*\?\s*["']["']\s*:\s*["']white["']/.test(script), "White-plate main filter must toggle its independent quick criterion");
@@ -664,18 +664,22 @@ assert(css.includes(".country-flag") && css.includes(".update-notice") && css.in
 assert(/\.stop-filter-chip\s*>\s*span:last-child\s*\{[^}]*font-size:\s*inherit/i.test(css), "Compact STOP-filter labels must use the same text size as the other filter chips");
 assert(!/filter-chip-icon/i.test(html + css), "Compact STOP-filter chips must not include a redundant icon that makes them wider");
 assert(/\.filter-dashboard\s*\{[^}]*position:\s*relative/i.test(css), "Filter dashboard needs a stable positioning context for its desktop panel");
+assert(/\.filter-dashboard\s*\{[^}]*flex:\s*0\s+0\s+auto/i.test(css) && /\.filter-workbench\s*\{[^}]*min-height:\s*210px/i.test(css), "Filter dashboard must not shrink and clip its categories above the large map");
 assert(/\.filter-group-grid\s*\{[^}]*display:\s*grid/i.test(css), "Desktop filter panel must use a structured group grid instead of one long strip");
 assert(/\.filter-chip-list\s*\{[^}]*flex-wrap:\s*wrap/i.test(css), "Filter options must wrap within their groups");
+assert(/Mausrad oder Touchpad:\s*Kategorie wechseln/i.test(html), "Filter dashboard must visibly explain wheel and touchpad category switching");
+assert(/FILTER_WHEEL_THRESHOLD/.test(script) && /addEventListener\(["']wheel["'],\s*switchFilterTabWithWheel,\s*\{\s*passive:\s*false\s*\}\)/.test(script), "Filter dashboard must bind guarded non-passive wheel category switching");
+assert(/atOuterBoundary/.test(script) && /FILTER_WHEEL_GESTURE_GAP/.test(script), "Wheel category switching must release page scrolling at the outer tabs and suppress repeated gesture jumps");
 assert(!/(?:\.filter-group-grid|\.filter-chip-list|\.car-meta-filter-options)[^{]*\{[^}]*(?:overflow-x\s*:\s*(?:auto|scroll)|white-space\s*:\s*nowrap)/i.test(css), "Desktop filter groups must not hide choices behind horizontal scrolling");
 assert(/@media\s*\([^)]*max-width\s*:[^)]*\)[\s\S]*?\.filter-group-grid\s*\{[^}]+grid-template-columns:\s*1fr/i.test(css), "Filter panel needs an explicit single-column mobile group layout");
 assert(/@media\s*\([^)]*max-width\s*:[^)]*\)[\s\S]*?(?:\.filter-chip|\.filter-toggle-button)\s*\{[^}]*(?:min-height|padding)/i.test(css), "Mobile filter controls need an explicit usable touch-target rule");
 assert(!css.includes("road-badge-base") && !css.includes("road-badge-leader"), "Legacy road badge styles must be removed");
 for (const relativePath of ["style.css", "data/world-map.js", "data/countries.js", "script.js"]) {
   assert(html.includes(relativePath), `index.html does not reference ${relativePath}`);
-  assert(html.includes(`${relativePath}?v=20260816-2`), `index.html must cache-bust ${relativePath} with the current build version`);
+  assert(html.includes(`${relativePath}?v=20260816-3`), `index.html must cache-bust ${relativePath} with the current build version`);
   assert(fs.existsSync(path.join(root, relativePath)), `Referenced file missing: ${relativePath}`);
 }
-assert(/<meta\s+name=["']geo-atlas-build["']\s+content=["']20260816-2["']/i.test(html), "index.html must expose the current cache-busting build version");
+assert(/<meta\s+name=["']geo-atlas-build["']\s+content=["']20260816-3["']/i.test(html), "index.html must expose the current cache-busting build version");
 
 assert(!/<(?:script|link|img|source|iframe)\b[^>]*(?:src|href)\s*=\s*["']https?:\/\//i.test(html), "index.html must not load external assets");
 assert(/keine manuelle Merkmalsauswahl|zuvor ausgewählte Filter/i.test(html), "Screenshot area must remain AI-only while accepting the external filter context");
@@ -746,6 +750,7 @@ console.log(JSON.stringify({
   structuredAiEvidenceCategories: true,
   robustAiExclusionsOnly: true,
   groupedFilterDashboard: true,
+  wheelDrivenFilterCategories: true,
   combinedFilterCountAndSummary: true,
   responsiveFilterWrap: true,
   phase3VisualFilters: true,

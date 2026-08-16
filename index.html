@@ -6,8 +6,8 @@
     <meta name="color-scheme" content="dark">
     <meta name="description" content="Lokaler interaktiver GeoGuessr-Länderatlas mit großer Weltkarte und visuellen Länderfiltern.">
     <title>GeoGuessr World Reference Atlas</title>
-    <meta name="geo-atlas-build" content="20260816-2">
-    <link rel="stylesheet" href="style.css?v=20260816-2">
+    <meta name="geo-atlas-build" content="20260816-3">
+    <link rel="stylesheet" href="style.css?v=20260816-3">
   </head>
   <body>
     <header class="app-header">
@@ -35,7 +35,7 @@
             <div class="filter-overview-copy">
               <span class="eyebrow">BILDMERKMALE</span>
               <h2 id="filterDashboardTitle">Was siehst du?</h2>
-              <p>Wähle Hinweise aus dem Street-View-Bild. Kategorien halten auch viele Filter übersichtlich.</p>
+              <p>Filter anklicken und direkt über dem Filterfeld scrollen, um die Kategorie zu wechseln.</p>
             </div>
             <div class="filter-overview-status">
               <strong id="filterResultCount">206 Treffer</strong>
@@ -53,7 +53,7 @@
               <button id="filterTabCamera" class="filter-category-tab" type="button" role="tab" aria-selected="false" aria-controls="filterPanelCamera" data-filter-tab="camera"><span class="filter-category-icon" aria-hidden="true">▣</span><span><strong>Kamera</strong><small>Google-Car-Meta</small></span><b data-tab-count>0</b></button>
             </nav>
 
-            <div id="filters" class="filter-category-panels">
+            <div id="filters" class="filter-category-panels" role="region" aria-label="Filterauswahl" aria-describedby="filterScrollHint">
               <section id="filterPanelBasis" class="filter-category-panel active" role="tabpanel" aria-labelledby="filterTabBasis" data-filter-panel="basis">
                 <div class="filter-panel-heading"><div><span class="eyebrow">SCHRITT 1</span><h3>Grobe Richtung eingrenzen</h3></div><p>Innerhalb einer Gruppe ersetzt ein Klick die vorherige Auswahl.</p></div>
                 <div class="filter-group-grid">
@@ -95,6 +95,7 @@
                   <section class="filter-group" role="group" aria-labelledby="captureTypeFilterTitle"><div class="filter-group-heading"><h4 id="captureTypeFilterTitle">Aufnahmeart</h4><span>eine Option</span></div><div class="filter-chip-list"><button id="motorcycleFilterChip" class="filter-chip vehicle-meta-chip capture-mode-chip" type="button" data-capture-type="motorcycle" aria-pressed="false">Motorradkamera</button><button id="trekkerFilterChip" class="filter-chip vehicle-meta-chip capture-mode-chip" type="button" data-capture-type="trekker" aria-pressed="false">Trekker / Fußkamera</button><button id="boatFilterChip" class="filter-chip vehicle-meta-chip capture-mode-chip" type="button" data-capture-type="boat" aria-pressed="false">Bootskamera</button><button class="filter-chip" type="button" data-quick-criterion="camera" data-quick-value="low" aria-pressed="false">Auffällig niedrige Kamera</button></div></section>
                 </div>
               </section>
+              <p id="filterScrollHint" class="filter-scroll-hint"><span aria-hidden="true">↕</span> Mausrad oder Touchpad: Kategorie wechseln <b id="filterCategoryPosition">1 / 5</b></p>
             </div>
           </div>
 
@@ -208,8 +209,8 @@
       </button>
     </aside>
 
-    <script src="data/world-map.js?v=20260816-2"></script>
-    <script src="data/countries.js?v=20260816-2"></script>
-    <script src="script.js?v=20260816-2"></script>
+    <script src="data/world-map.js?v=20260816-3"></script>
+    <script src="data/countries.js?v=20260816-3"></script>
+    <script src="script.js?v=20260816-3"></script>
   </body>
 </html>

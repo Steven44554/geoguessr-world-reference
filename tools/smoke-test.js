@@ -220,7 +220,7 @@ class TestNode {
 const requiredIds = [
   "worldMap", "mapViewport", "graticule", "countryClipPaths", "countryPaths", "roadLineOverlays", "countryBorders",
   "smallCountryMarkers", "mapTooltip", "countryPanel", "searchInput", "searchSummary", "filters",
-  "filterDashboard", "filterPanel", "filterResultCount", "activeFilterCount", "activeFilterSummary",
+  "filterDashboard", "filterPanel", "filterResultCount", "activeFilterCount", "activeFilterSummary", "filterScrollHint", "filterCategoryPosition",
   "filterTabBasis", "filterTabRoad", "filterTabScene", "filterTabObjects", "filterTabCamera",
   "filterPanelBasis", "filterPanelRoad", "filterPanelScene", "filterPanelObjects", "filterPanelCamera",
   "zoomIn", "zoomOut", "resetZoom",
@@ -278,6 +278,9 @@ for (const [index, name] of filterCategories.entries()) {
   filterPanelNode.appendChild(tab);
   filtersNode.appendChild(panel);
 }
+nodesById.get("filterScrollHint").textContent = "Mausrad oder Touchpad: Kategorie wechseln";
+nodesById.get("filterScrollHint").appendChild(nodesById.get("filterCategoryPosition"));
+filtersNode.appendChild(nodesById.get("filterScrollHint"));
 const allFilterChipNode = nodesById.get("allFilterChip");
 allFilterChipNode.tagName = "button";
 allFilterChipNode.setAttribute("type", "button");
@@ -580,11 +583,33 @@ const basisTab = nodesById.get("filterTabBasis");
 const roadTab = nodesById.get("filterTabRoad");
 const sceneTab = nodesById.get("filterTabScene");
 assert(!filterPanel.hidden && basisTab.getAttribute("aria-selected") === "true" && !nodesById.get("filterPanelBasis").hidden, "Persistent filter dashboard must start with its Basis category visible");
+nodesById.get("leftTrafficFilterChip").focus();
+let wheelPrevented = 0;
+fire("filters", "wheel", { target: nodesById.get("filterPanelBasis"), deltaX: 0, deltaY: 24, deltaMode: 0, timeStamp: 1000, preventDefault() { wheelPrevented += 1; } });
+assert(basisTab.getAttribute("aria-selected") === "true" && wheelPrevented === 1, "A small touchpad delta must be accumulated without skipping the Basis category");
+fire("filters", "wheel", { target: nodesById.get("filterPanelBasis"), deltaX: 0, deltaY: 24, deltaMode: 0, timeStamp: 1010, preventDefault() { wheelPrevented += 1; } });
+assert(roadTab.getAttribute("aria-selected") === "true" && nodesById.get("filterCategoryPosition").textContent === "2 / 5", "One downward wheel gesture must move from Basis to Straße");
+assert(document.activeElement === roadTab, "Wheel switching must rescue focus from a filter chip before its old panel becomes hidden");
+fire("filters", "wheel", { target: nodesById.get("filterPanelRoad"), deltaX: 0, deltaY: 120, deltaMode: 0, timeStamp: 1050, preventDefault() { wheelPrevented += 1; } });
+assert(roadTab.getAttribute("aria-selected") === "true", "Momentum from the same wheel gesture must not skip multiple filter categories");
+fire("filters", "wheel", { target: nodesById.get("filterPanelRoad"), deltaX: 0, deltaY: 120, deltaMode: 0, timeStamp: 1300, preventDefault() { wheelPrevented += 1; } });
+assert(sceneTab.getAttribute("aria-selected") === "true" && document.activeElement === sceneTab, "A separate downward wheel gesture must advance to Umgebung and keep tab focus synchronized");
+fire("filters", "wheel", { target: nodesById.get("filterPanelScene"), deltaX: 0, deltaY: -120, deltaMode: 0, timeStamp: 1600, preventDefault() { wheelPrevented += 1; } });
+assert(roadTab.getAttribute("aria-selected") === "true", "An upward wheel gesture must move exactly one category back");
+fire("filters", "wheel", { target: nodesById.get("filterPanelRoad"), deltaX: 0, deltaY: -120, deltaMode: 0, timeStamp: 1900, preventDefault() { wheelPrevented += 1; } });
+let outerBoundaryPrevented = false;
+fire("filters", "wheel", { target: nodesById.get("filterPanelBasis"), deltaX: 0, deltaY: -120, deltaMode: 0, timeStamp: 2200, preventDefault() { outerBoundaryPrevented = true; } });
+assert(basisTab.getAttribute("aria-selected") === "true" && !outerBoundaryPrevented, "Scrolling upward at Basis must leave normal page scrolling available");
+fire("filters", "wheel", { target: nodesById.get("filterPanelBasis"), deltaX: 100, deltaY: 12, deltaMode: 0, timeStamp: 2500, preventDefault() { throw new Error("Horizontal wheel movement must not be captured"); } });
+fire("filters", "wheel", { target: nodesById.get("filterPanelBasis"), deltaX: 0, deltaY: 120, deltaMode: 0, timeStamp: 2800, ctrlKey: true, preventDefault() { throw new Error("Touchpad pinch zoom must not be captured"); } });
+assert(basisTab.getAttribute("aria-selected") === "true", "Horizontal scrolling and touchpad pinch zoom must leave the filter category unchanged");
 clickWithBubble("filterTabRoad", "filterDashboard");
 assert(roadTab.getAttribute("aria-selected") === "true" && !nodesById.get("filterPanelRoad").hidden && nodesById.get("filterPanelBasis").hidden, "Clicking a category tab must reveal only its associated filter panel");
-fire("filterDashboard", "keydown", { target: roadTab, key: "ArrowRight" });
+fire("filterDashboard", "keydown", { target: roadTab, key: "ArrowDown" });
 assert(sceneTab.getAttribute("aria-selected") === "true" && !nodesById.get("filterPanelScene").hidden, "Arrow keys must move between filter categories");
 assert(document.activeElement === sceneTab, "Keyboard category navigation must move focus with the selected tab");
+fire("filterDashboard", "keydown", { target: sceneTab, key: "ArrowUp" });
+assert(roadTab.getAttribute("aria-selected") === "true" && document.activeElement === roadTab, "Vertical arrow keys must match the desktop tab orientation in both directions");
 clickWithBubble("filterTabBasis", "filterDashboard");
 
 const paths = nodesById.get("countryPaths");
@@ -1172,6 +1197,7 @@ assertPanelCountry("PHL", "Philippinen");
     mainFiltersWorkOffline: true,
     allResetsMainFiltersAndAi: true,
     groupedFilterDashboard: ["Basis", "Straße", "Umgebung", "Objekte", "Kamera"],
+    wheelDrivenFilterCategories: ["singleStep", "momentumGuard", "outerBoundaryRelease"],
     additionalGeoGuessrFilters: ["Sprache", "Warnschildform", "Kennzeichenanordnung", "Leitpfosten", "Masten", "Straßenrand", "Kamerahöhe"],
     russiaVariableRoadLineFilters: ["yellowCenter", "whiteCenter", "yellowEdge", "whiteEdge"],
     filterDashboardKeyboardAndAria: true,
