@@ -73,9 +73,18 @@ class TestNode {
     if (this.type === "file" && this._value === "") this.files = [];
   }
 
+  get className() {
+    return this.attributes.class || "";
+  }
+
+  set className(nextValue) {
+    this.setAttribute("class", nextValue);
+  }
+
   setAttribute(name, value) {
     const stringValue = String(value);
     this.attributes[name] = stringValue;
+    if (name === "id") this.id = stringValue;
     if (name === "class") this.classList.setFromString(stringValue);
     if (name === "src") this.src = stringValue;
     if (name.startsWith("data-")) {
@@ -113,6 +122,10 @@ class TestNode {
     children.forEach((child) => this.appendChild(child));
   }
 
+  get childElementCount() {
+    return this.children.length;
+  }
+
   addEventListener(type, handler) {
     (this.listeners[type] ||= []).push(handler);
   }
@@ -133,32 +146,45 @@ class TestNode {
     this.dispatchEvent({ type: "click" });
   }
 
+  matches(selector) {
+    return String(selector).split(",").some((selectorPart) => {
+      const part = selectorPart.trim();
+      if (!part || /\s/.test(part)) return false;
+      const tagName = part.match(/^[a-z][a-z0-9-]*/i)?.[0];
+      if (tagName && this.tagName.toLowerCase() !== tagName.toLowerCase()) return false;
+      const idMatches = [...part.matchAll(/#([a-z0-9_-]+)/gi)];
+      if (idMatches.some((match) => this.id !== match[1])) return false;
+      const classMatches = [...part.matchAll(/\.([a-z0-9_-]+)/gi)];
+      if (classMatches.some((match) => !this.classList.contains(match[1]))) return false;
+      const attributeMatches = [...part.matchAll(/\[([a-z0-9_-]+)(?:=(?:"([^"]*)"|'([^']*)'))?\]/gi)];
+      for (const match of attributeMatches) {
+        const [, attributeName, doubleQuotedValue, singleQuotedValue] = match;
+        let actualValue = this.getAttribute(attributeName);
+        if (actualValue === null && attributeName.startsWith("data-")) {
+          const dataKey = attributeName.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+          actualValue = this.dataset[dataKey] ?? null;
+        }
+        if (actualValue === null) return false;
+        const expectedValue = doubleQuotedValue ?? singleQuotedValue;
+        if (expectedValue !== undefined && actualValue !== expectedValue) return false;
+      }
+      return true;
+    });
+  }
+
   closest(selector) {
     let node = this;
     while (node) {
-      if (selector.startsWith(".")) {
-        if (node.classList.contains(selector.slice(1))) return node;
-      } else {
-        const dataMatch = selector.match(/^\[data-([a-z0-9-]+)\]$/i);
-        if (dataMatch) {
-          const key = dataMatch[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-          if (node.dataset[key] !== undefined) return node;
-        }
-      }
+      if (node.matches(selector)) return node;
       node = node.parentNode;
     }
     return null;
   }
 
   querySelectorAll(selector) {
-    const classes = selector.startsWith(".") ? selector.slice(1).split(".") : null;
-    const dataSelector = selector.match(/^\[data-([a-z0-9-]+)(?:=(?:"([^"]*)"|'([^']*)'))?\]$/i);
-    const dataKey = dataSelector?.[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-    const expectedDataValue = dataSelector ? (dataSelector[2] ?? dataSelector[3]) : undefined;
     const results = [];
     const visit = (node) => {
-      if (classes && classes.every((className) => node.classList.contains(className))) results.push(node);
-      if (dataSelector && node.dataset[dataKey] !== undefined && (expectedDataValue === undefined || node.dataset[dataKey] === expectedDataValue)) results.push(node);
+      if (node.matches(selector)) results.push(node);
       node.children.forEach(visit);
     };
     this.children.forEach(visit);
@@ -178,21 +204,32 @@ class TestNode {
   scrollTo() {}
   scrollIntoView() {}
   setPointerCapture() {}
-  focus() {}
+  contains(node) {
+    let current = node;
+    while (current) {
+      if (current === this) return true;
+      current = current.parentNode;
+    }
+    return false;
+  }
+  focus() {
+    document.activeElement = this;
+  }
 }
 
 const requiredIds = [
   "worldMap", "mapViewport", "graticule", "countryClipPaths", "countryPaths", "roadLineOverlays", "countryBorders",
-  "smallCountryMarkers", "mapTooltip", "countryPanel", "searchInput", "searchSummary", "filters", "countryBrowser",
-  "browserButton", "closeBrowser", "browserList", "compareButton", "compareCount", "comparisonModal", "comparisonGrid",
-  "compareSelect1", "compareSelect2", "compareSelect3", "zoomIn", "zoomOut", "resetZoom",
+  "smallCountryMarkers", "mapTooltip", "countryPanel", "searchInput", "searchSummary", "filters",
+  "filterDashboard", "filterPanel", "filterResultCount", "activeFilterCount", "activeFilterSummary",
+  "filterTabBasis", "filterTabRoad", "filterTabScene", "filterTabObjects", "filterTabCamera",
+  "filterPanelBasis", "filterPanelRoad", "filterPanelScene", "filterPanelObjects", "filterPanelCamera",
+  "zoomIn", "zoomOut", "resetZoom",
   "matcherButton", "roadMatcher", "roadScreenshot", "matcherPreview", "matcherPreviewImage", "removeScreenshot",
-  "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle",
-  "matcherPlateColor", "matcherSurface", "matcherStopOnly", "matcherStopOther", "stopOnlyFilterChip", "stopOtherFilterChip",
-  "whiteEdgeFilterChip", "whitePlateFilterChip", "allFilterChip", "leftTrafficFilterChip", "matcherReset", "matcherSummary", "matcherRoadPreview", "matcherCandidates",
-  "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
-  "matcherExcludedSummary",
-  "aiHelperCard", "aiHelperStatus", "analyzeScreenshotButton", "aiAnalysisResult", "downloadAiHelper",
+  "stopOnlyFilterChip", "stopOtherFilterChip", "yellowCenterFilterChip", "whiteCenterFilterChip", "yellowEdgeFilterChip", "whiteEdgeFilterChip", "whitePlateFilterChip", "allFilterChip", "leftTrafficFilterChip", "rightTrafficFilterChip",
+  "yellowDiamondFilterChip",
+  "carMetaFilters", "roofRackFilterChip", "mirrorFilterChip", "snorkelFilterChip", "equipmentFilterChip", "tapeFilterChip",
+  "motorcycleFilterChip", "trekkerFilterChip", "boatFilterChip",
+  "aiHelperCard", "aiHelperStatus", "analyzeScreenshotButton", "resetAiAnalysisButton", "aiAnalysisResult", "downloadAiHelper",
   "updateNotice", "dismissUpdateNotice", "updateNoticeHeading", "updateNoticeText", "updateNoticeTime",
 ];
 const nodesById = new Map(requiredIds.map((id) => [id, new TestNode("div", id)]));
@@ -202,61 +239,127 @@ nodesById.get("roadMatcher").setAttribute("aria-hidden", "true");
 nodesById.get("matcherButton").setAttribute("aria-expanded", "false");
 nodesById.get("matcherPreview").hidden = true;
 nodesById.get("roadScreenshot").type = "file";
-nodesById.get("matcherStopOnly").type = "checkbox";
-nodesById.get("matcherStopOther").type = "checkbox";
 nodesById.get("analyzeScreenshotButton").disabled = true;
+nodesById.get("resetAiAnalysisButton").disabled = true;
 nodesById.get("aiAnalysisResult").hidden = true;
 nodesById.get("aiHelperStatus").dataset.state = "unknown";
 nodesById.get("updateNotice").hidden = true;
-nodesById.get("updateNotice").dataset.updateId = "2026-08-11-optionale-groq-ki-v1";
-nodesById.get("updateNotice").dataset.publishedAt = "2026-08-11T14:04:00+02:00";
+nodesById.get("updateNotice").dataset.updateId = "2026-08-11-ki-endtipp-filterkontext-v6";
+nodesById.get("updateNotice").dataset.publishedAt = "2026-08-11T17:46:16+02:00";
+const filterDashboardNode = nodesById.get("filterDashboard");
+const filterPanelNode = nodesById.get("filterPanel");
+filterPanelNode.hidden = false;
+nodesById.get("filterResultCount").textContent = "206 Treffer";
+nodesById.get("activeFilterCount").textContent = "0";
+nodesById.get("activeFilterSummary").textContent = "Keine Filter aktiv";
+nodesById.get("activeFilterSummary").setAttribute("role", "status");
+nodesById.get("activeFilterSummary").setAttribute("aria-live", "polite");
+nodesById.get("activeFilterSummary").setAttribute("aria-atomic", "true");
+filterDashboardNode.append(
+  nodesById.get("filterResultCount"),
+  nodesById.get("activeFilterCount"),
+  nodesById.get("activeFilterSummary"),
+  nodesById.get("allFilterChip"),
+  filterPanelNode,
+);
 const filtersNode = nodesById.get("filters");
+filterPanelNode.appendChild(filtersNode);
+const filterCategories = ["Basis", "Road", "Scene", "Objects", "Camera"];
+for (const [index, name] of filterCategories.entries()) {
+  const key = name.toLowerCase();
+  const tab = nodesById.get(`filterTab${name}`);
+  const panel = nodesById.get(`filterPanel${name}`);
+  tab.tagName = "button";
+  tab.setAttribute("data-filter-tab", key);
+  tab.setAttribute("aria-selected", String(index === 0));
+  tab.classList.toggle("active", index === 0);
+  panel.setAttribute("data-filter-panel", key);
+  panel.hidden = index !== 0;
+  filterPanelNode.appendChild(tab);
+  filtersNode.appendChild(panel);
+}
 const allFilterChipNode = nodesById.get("allFilterChip");
 allFilterChipNode.tagName = "button";
-allFilterChipNode.classList.add("filter-chip", "active");
-allFilterChipNode.dataset.filter = "all";
-allFilterChipNode.setAttribute("aria-pressed", "true");
-filtersNode.appendChild(allFilterChipNode);
+allFilterChipNode.setAttribute("type", "button");
+allFilterChipNode.textContent = "Filter löschen";
+allFilterChipNode.disabled = true;
 
-function configureMatcherFilterChip(id, dataKey, controlId) {
+function configureMatcherFilterChip(id, dataKey, panelName = "Road") {
   const chip = nodesById.get(id);
   chip.tagName = "button";
   chip.classList.add("filter-chip");
-  chip.dataset[dataKey] = "";
-  chip.setAttribute("aria-controls", controlId);
+  chip.setAttribute(`data-${dataKey.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, "");
   chip.setAttribute("aria-pressed", "false");
-  filtersNode.appendChild(chip);
+  nodesById.get(`filterPanel${panelName}`).appendChild(chip);
   return chip;
 }
 
-configureMatcherFilterChip("stopOnlyFilterChip", "matcherStopOnly", "matcherStopOnly");
-configureMatcherFilterChip("stopOtherFilterChip", "matcherStopOther", "matcherStopOther");
-configureMatcherFilterChip("whiteEdgeFilterChip", "matcherEdgeWhite", "matcherEdgeColor");
-configureMatcherFilterChip("whitePlateFilterChip", "matcherPlateWhite", "matcherPlateColor");
+configureMatcherFilterChip("stopOnlyFilterChip", "matcherStopOnly");
+configureMatcherFilterChip("stopOtherFilterChip", "matcherStopOther");
+configureMatcherFilterChip("whiteEdgeFilterChip", "matcherEdgeWhite");
+configureMatcherFilterChip("whitePlateFilterChip", "matcherPlateWhite");
+nodesById.get("stopOnlyFilterChip").textContent = "STOP: nur STOP";
+nodesById.get("stopOtherFilterChip").textContent = "STOP: anderer Text";
+nodesById.get("whiteEdgeFilterChip").textContent = "Weiße Randlinie";
+nodesById.get("whitePlateFilterChip").textContent = "Weiße Kennzeichen";
+for (const [id, filter, label] of [
+  ["yellowCenterFilterChip", "center:gelb", "Gelbe Mittellinie"],
+  ["whiteCenterFilterChip", "center:weiß", "Weiße Mittellinie"],
+  ["yellowEdgeFilterChip", "edge:gelb", "Gelbe Randlinie"],
+]) {
+  const chip = nodesById.get(id);
+  chip.tagName = "button";
+  chip.classList.add("filter-chip");
+  chip.setAttribute("data-filter", filter);
+  chip.setAttribute("aria-pressed", "false");
+  chip.textContent = label;
+  nodesById.get("filterPanelRoad").appendChild(chip);
+}
+const yellowDiamondFilterChipNode = nodesById.get("yellowDiamondFilterChip");
+yellowDiamondFilterChipNode.tagName = "button";
+yellowDiamondFilterChipNode.classList.add("filter-chip");
+yellowDiamondFilterChipNode.setAttribute("data-quick-criterion", "warningSign");
+yellowDiamondFilterChipNode.setAttribute("data-quick-value", "diamond-yellow");
+yellowDiamondFilterChipNode.setAttribute("aria-pressed", "false");
+yellowDiamondFilterChipNode.textContent = "Gelbes Rautenschild";
+nodesById.get("filterPanelRoad").appendChild(yellowDiamondFilterChipNode);
 const leftTrafficFilterChipNode = nodesById.get("leftTrafficFilterChip");
 leftTrafficFilterChipNode.tagName = "button";
 leftTrafficFilterChipNode.classList.add("filter-chip");
-leftTrafficFilterChipNode.dataset.filter = "traffic:left";
+leftTrafficFilterChipNode.setAttribute("data-filter", "traffic:left");
 leftTrafficFilterChipNode.setAttribute("aria-pressed", "false");
-filtersNode.appendChild(leftTrafficFilterChipNode);
-for (const classes of [
-  ["matcher-preview-ground"],
-  ["matcher-preview-road"],
-  ["matcher-preview-edge", "left"],
-  ["matcher-preview-edge", "right"],
-  ["matcher-preview-band"],
-  ["matcher-preview-center"],
+leftTrafficFilterChipNode.textContent = "Linksverkehr";
+nodesById.get("filterPanelBasis").appendChild(leftTrafficFilterChipNode);
+const rightTrafficFilterChipNode = nodesById.get("rightTrafficFilterChip");
+rightTrafficFilterChipNode.tagName = "button";
+rightTrafficFilterChipNode.classList.add("filter-chip");
+rightTrafficFilterChipNode.setAttribute("data-filter", "traffic:right");
+rightTrafficFilterChipNode.setAttribute("aria-pressed", "false");
+rightTrafficFilterChipNode.textContent = "Rechtsverkehr";
+nodesById.get("filterPanelBasis").appendChild(rightTrafficFilterChipNode);
+const carMetaFiltersNode = nodesById.get("carMetaFilters");
+nodesById.get("filterPanelCamera").appendChild(carMetaFiltersNode);
+for (const [id, dataKey, value, label] of [
+  ["roofRackFilterChip", "captureFeature", "roof-rack", "Dachträger"],
+  ["mirrorFilterChip", "captureFeature", "mirrors", "Spiegel"],
+  ["snorkelFilterChip", "captureFeature", "snorkel", "Schnorchel"],
+  ["equipmentFilterChip", "captureFeature", "equipment", "Zelt / Gepäck"],
+  ["tapeFilterChip", "captureFeature", "tape", "Klebeband"],
+  ["motorcycleFilterChip", "captureType", "motorcycle", "Motorrad"],
+  ["trekkerFilterChip", "captureType", "trekker", "Trekker"],
+  ["boatFilterChip", "captureType", "boat", "Boot"],
 ]) {
-  const previewPart = new TestNode(classes[0] === "matcher-preview-ground" ? "rect" : "path");
-  previewPart.classList.add(...classes);
-  nodesById.get("matcherRoadPreview").appendChild(previewPart);
+  const chip = nodesById.get(id);
+  chip.tagName = "button";
+  chip.classList.add("filter-chip");
+  chip.setAttribute(`data-${dataKey.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, value);
+  chip.setAttribute("aria-pressed", "false");
+  chip.textContent = label;
+  carMetaFiltersNode.appendChild(chip);
 }
-const matcherSelectIds = [
-  "matcherTraffic", "matcherCenterColor", "matcherCenterStyle", "matcherEdgeColor", "matcherEdgeStyle", "matcherPlateColor", "matcherSurface",
-  "matcherStopText", "matcherWarningSign", "matcherPlateLayout", "matcherBollard", "matcherPole", "matcherShoulder", "matcherSignBack", "matcherCamera",
-];
 const documentListeners = {};
 const document = {
+  activeElement: null,
   getElementById: (id) => nodesById.get(id) || null,
   createElement: (name) => new TestNode(name),
   createElementNS: (_namespace, name) => new TestNode(name),
@@ -266,26 +369,7 @@ const document = {
     node.textContent = String(value ?? "");
     return node;
   },
-  querySelectorAll: (selector) => {
-    const requestedSelectors = String(selector).split(",").map((part) => part.trim());
-    const matches = [];
-    if (requestedSelectors.includes(".matcher-observations select")) {
-      matches.push(...matcherSelectIds.map((id) => nodesById.get(id)));
-    }
-    if (requestedSelectors.includes(".matcher-advanced select")) {
-      matches.push(...matcherSelectIds.slice(7).map((id) => nodesById.get(id)));
-    }
-    if (requestedSelectors.some((part) => [
-      ".matcher-observations input",
-      ".matcher-observations input[type=\"checkbox\"]",
-      ".matcher-observations input[type='checkbox']",
-      "#matcherStopOnly",
-      "#matcherStopOther",
-    ].includes(part))) {
-      matches.push(nodesById.get("matcherStopOnly"), nodesById.get("matcherStopOther"));
-    }
-    return [...new Set(matches)];
-  },
+  querySelectorAll: () => [],
   addEventListener(type, handler) {
     (documentListeners[type] ||= []).push(handler);
   },
@@ -338,11 +422,28 @@ class TestFileReader {
 
 const helperRequests = [];
 let helperOnline = true;
+let deferredAnalysisResponse = null;
 let nextAnalysisPayload = {
   ok: true,
   model: "smoke-test-vision",
-  summary: "Testanalyse ohne echte Netzwerkanfrage.",
+  appliedFilterContext: { version: 1, activeFilters: [] },
   observations: {},
+  summary: "Testanalyse ohne echte Netzwerkanfrage.",
+  countryAnalysis: {
+    summary: "Das gesamte Straßenbild wurde ausgewertet.",
+    imageClues: [],
+    bestGuess: {
+      iso3: "NLD",
+      country: "Niederlande",
+      confidence: 0.67,
+      reasons: ["Der stärkste verbleibende Kandidat."],
+      evidence: ["Gesamteindruck"],
+      evidenceCategories: ["landscape"],
+    },
+    likely: [],
+    possible: [],
+    excluded: [],
+  },
   warnings: [],
 };
 
@@ -354,13 +455,31 @@ function helperResponse(payload, status = 200) {
   };
 }
 
+function deferNextAnalysisResponse() {
+  let resolveResponse;
+  const promise = new Promise((resolve) => {
+    resolveResponse = resolve;
+  });
+  deferredAnalysisResponse = promise;
+  return {
+    resolve(payload = nextAnalysisPayload) {
+      resolveResponse(helperResponse(payload));
+    },
+  };
+}
+
 async function fetchMock(url, options = {}) {
   helperRequests.push({ url: String(url), options });
   if (!helperOnline) throw new TypeError("Failed to fetch local helper");
   if (String(url) === "http://127.0.0.1:43117/health") {
-    return helperResponse({ ok: true, groqConfigured: true });
+    return helperResponse({ ok: true, groqConfigured: true, capabilities: { bestGuess: true, filterContextVersion: 1 } });
   }
   if (String(url) === "http://127.0.0.1:43117/analyze") {
+    if (deferredAnalysisResponse) {
+      const pendingResponse = deferredAnalysisResponse;
+      deferredAnalysisResponse = null;
+      return pendingResponse;
+    }
     return helperResponse(nextAnalysisPayload);
   }
   throw new Error(`Unexpected network target in smoke test: ${url}`);
@@ -384,9 +503,6 @@ vm.createContext(context);
 for (const relativePath of ["data/world-map.js", "data/countries.js", "script.js"]) {
   vm.runInContext(fs.readFileSync(path.join(root, relativePath), "utf8"), context, { filename: relativePath });
 }
-
-assert(nodesById.get("matcherRoadPreview").querySelector(".matcher-preview-center").style.display === "none", "Unselected center markings must stay hidden in the live road preview");
-assert(nodesById.get("matcherRoadPreview").querySelector(".matcher-preview-edge.left").style.display === "none", "Unselected edge markings must stay hidden in the live road preview");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -414,9 +530,8 @@ function clickWithBubble(id, parentId) {
   fire(parentId, "click", { target });
 }
 
-function setMatcherValue(id, value) {
-  nodesById.get(id).value = value;
-  fire(id, "change");
+function clickFilter(id) {
+  clickWithBubble(id, "filterDashboard");
 }
 
 function countryShape(iso3) {
@@ -450,7 +565,7 @@ function hasMatcherResultClass(node) {
 const updateNotice = nodesById.get("updateNotice");
 const updateNoticeId = updateNotice.dataset.updateId;
 assert(updateNotice.hidden === false, "A newly published version must reveal the update notice");
-assert(/11\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /14:04/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its current Luxembourg publication date and time");
+assert(/11\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /17:46/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its current Luxembourg publication date and time");
 document.dispatchEvent({ type: "keydown", key: "Escape" });
 assert(updateNotice.hidden === true, "Escape must dismiss a visible update notice");
 assert(stored.get("geoguessr-atlas-seen-update-id") === updateNoticeId, "Dismissing the update notice must persist the current version ID");
@@ -459,6 +574,18 @@ updateNotice.hidden = false;
 fire("dismissUpdateNotice", "click");
 assert(updateNotice.hidden === true, "Clicking the update notice button must dismiss the popup");
 assert(stored.get("geoguessr-atlas-seen-update-id") === updateNoticeId, "Click dismissal must persist the current update version");
+
+const filterPanel = nodesById.get("filterPanel");
+const basisTab = nodesById.get("filterTabBasis");
+const roadTab = nodesById.get("filterTabRoad");
+const sceneTab = nodesById.get("filterTabScene");
+assert(!filterPanel.hidden && basisTab.getAttribute("aria-selected") === "true" && !nodesById.get("filterPanelBasis").hidden, "Persistent filter dashboard must start with its Basis category visible");
+clickWithBubble("filterTabRoad", "filterDashboard");
+assert(roadTab.getAttribute("aria-selected") === "true" && !nodesById.get("filterPanelRoad").hidden && nodesById.get("filterPanelBasis").hidden, "Clicking a category tab must reveal only its associated filter panel");
+fire("filterDashboard", "keydown", { target: roadTab, key: "ArrowRight" });
+assert(sceneTab.getAttribute("aria-selected") === "true" && !nodesById.get("filterPanelScene").hidden, "Arrow keys must move between filter categories");
+assert(document.activeElement === sceneTab, "Keyboard category navigation must move focus with the selected tab");
+clickWithBubble("filterTabBasis", "filterDashboard");
 
 const paths = nodesById.get("countryPaths");
 const clips = nodesById.get("countryClipPaths");
@@ -471,7 +598,7 @@ const worldCount = overlays.children.length;
 const initialPanel = nodesById.get("countryPanel").innerHTML;
 assert(/\bempty-state\b/.test(initialPanel), "Country panel must retain its neutral empty state on startup");
 assert(/Wähle ein Land/i.test(initialPanel), "Country panel must show a neutral German selection heading on startup");
-assert(/Karte/i.test(initialPanel) && /Länderbrowser/i.test(initialPanel), "Country panel must explain the map and browser selection routes on startup");
+assert(/Karte/i.test(initialPanel) && !/Länderbrowser/i.test(initialPanel), "Country panel must explain map selection without the removed country browser");
 assert(!/Südafrika/i.test(initialPanel), "South Africa must not be displayed in the country panel on startup");
 assert(!nodesById.get("worldMap").classList.contains("has-selection"), "Map must start without an active country selection");
 assert(!paths.querySelectorAll(".is-selected").length && !borders.querySelectorAll(".is-selected").length, "No country shape or border may start selected");
@@ -525,13 +652,9 @@ const tooltipMarkup = nodesById.get("mapTooltip").innerHTML;
 assert((tooltipMarkup.match(/<span/g) || []).length === 2 && (tooltipMarkup.match(/<strong/g) || []).length === 1, "Map tooltip must stay at exactly three compact lines");
 assertPanelCountry("NLD", "Niederlande");
 
-fire("browserButton", "click");
-assert(nodesById.get("countryBrowser").classList.contains("open"), "Country browser must open before browser selection");
-const japanBrowserCountry = new TestNode("button");
-japanBrowserCountry.dataset.selectCountry = "JPN";
-document.dispatchEvent({ type: "click", target: japanBrowserCountry });
+countryShape("JPN").listeners.click[0]();
 assertPanelCountry("JPN", "Japan");
-assert(countryShape("JPN").classList.contains("is-selected"), "Country selected through the browser must be highlighted");
+assert(countryShape("JPN").classList.contains("is-selected"), "Country selected on the map must be highlighted");
 const japanPanelMarkup = nodesById.get("countryPanel").innerHTML;
 assert(/Datenqualität und Quellen/.test(japanPanelMarkup), "Selected-country panel must expose data quality and sources");
 assert(/Zuverlässigkeit/.test(japanPanelMarkup) && /Quelle 1/.test(japanPanelMarkup), "Country data-quality panel must label confidence and at least one source");
@@ -539,7 +662,6 @@ assert(/target="_blank" rel="noopener noreferrer"/.test(japanPanelMarkup), "Coun
 assert((japanPanelMarkup.match(/class="country-flag"/g) || []).length === 1 && /aria-label="Flagge von Japan"/.test(japanPanelMarkup), "Japan's selected-country profile must show exactly one prominent accessible flag");
 assert(/src="assets\/flags\/4x3\/jp\.svg"/.test(japanPanelMarkup), "Japan's selected-country profile must use its local SVG flag");
 assert(!netherlandsPath.classList.contains("is-selected"), "Previous map selection must be cleared after browser selection");
-assert(!nodesById.get("countryBrowser").classList.contains("open"), "Country browser must close after selecting a country");
 
 countryShape("RUS").listeners.click[0]();
 assertPanelCountry("RUS", "Russland");
@@ -549,454 +671,519 @@ assert(!/assets\/flags\/4x3\/jp\.svg/.test(russiaPanelMarkup), "Changing countri
 
 countryShape("PHL").listeners.click[0]();
 assertPanelCountry("PHL", "Philippinen");
-const philippinesPanelMarkup = nodesById.get("countryPanel").innerHTML;
-assert(/aria-label="Flagge von Philippinen"/.test(philippinesPanelMarkup) && /src="assets\/flags\/4x3\/ph\.svg"/.test(philippinesPanelMarkup), "Selecting the Philippines must show the Philippine local SVG flag");
-assert((philippinesPanelMarkup.match(/class="road-slab-joints"/g) || []).length === 2, "Both Philippine concrete road diagrams must show rectangular slab joints");
-assert(!/assets\/flags\/4x3\/ru\.svg/.test(philippinesPanelMarkup), "The Philippine panel must not retain Russia's flag");
+  const philippinesPanelMarkup = nodesById.get("countryPanel").innerHTML;
+  assert(/aria-label="Flagge von Philippinen"/.test(philippinesPanelMarkup) && /src="assets\/flags\/4x3\/ph\.svg"/.test(philippinesPanelMarkup), "Selecting the Philippines must show the Philippine local SVG flag");
+  assert((philippinesPanelMarkup.match(/class="road-slab-joints"/g) || []).length === 2, "Both Philippine concrete road diagrams must show rectangular slab joints");
+  assert(!/assets\/flags\/4x3\/ru\.svg/.test(philippinesPanelMarkup), "The Philippine panel must not retain Russia's flag");
 
-// The matcher uses a locally shown screenshot as a visual reference. The actual
-// country filtering is deterministic and driven only by the selected clues.
-const matcher = nodesById.get("roadMatcher");
-const allFilterChip = nodesById.get("allFilterChip");
-const mainStopOnlyChip = nodesById.get("stopOnlyFilterChip");
-const mainStopOtherChip = nodesById.get("stopOtherFilterChip");
-const mainWhiteEdgeChip = nodesById.get("whiteEdgeFilterChip");
-const mainWhitePlateChip = nodesById.get("whitePlateFilterChip");
-const stopOnlyCheckbox = nodesById.get("matcherStopOnly");
-const stopOtherCheckbox = nodesById.get("matcherStopOther");
-assert(stopOnlyCheckbox.checked === false, "STOP-only matcher checkbox must start disabled");
-assert(stopOtherCheckbox.checked === false, "Other-text stop-sign matcher checkbox must start disabled");
-assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Main STOP-only filter chip must start inactive");
-assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Main other-text stop-sign filter chip must start inactive");
-assert(mainWhiteEdgeChip.getAttribute("aria-pressed") === "false" && !mainWhiteEdgeChip.classList.contains("active"), "Main white-edge filter chip must start inactive");
-assert(mainWhitePlateChip.getAttribute("aria-pressed") === "false" && !mainWhitePlateChip.classList.contains("active"), "Main white-plate filter chip must start inactive");
-assert(allFilterChip.getAttribute("aria-pressed") === "true" && allFilterChip.classList.contains("active"), "All must start active while no matcher clues are selected");
+  const searchInput = nodesById.get("searchInput");
+  searchInput.value = "Vientiane";
+  fire("searchInput", "input");
+  assert(!countryShape("LAO").classList.contains("is-dimmed") && countryShape("GTM").classList.contains("is-dimmed"), "Country search must index regional Google-car meta such as Laos's Vientiane variant");
+  searchInput.value = "";
+  fire("searchInput", "input");
+  countryShape("LAO").listeners.click[0]();
+  const laosPanelMarkup = nodesById.get("countryPanel").innerHTML;
+  assert(/(?:GOOGLE-CAR|FAHRZEUG)[^<]{0,40}(?:META|AUFNAHME)/i.test(laosPanelMarkup), "Selected-country panel must visibly expose Google-car and capture meta");
+  assert(/Dachträger/.test(laosPanelMarkup) && /Seitenspiegel/.test(laosPanelMarkup) && /Vientiane/.test(laosPanelMarkup), "Laos panel must show the documented roof-rack and mirror variant plus its capital exception");
+  assert(/https:\/\/www\.plonkit\.net\/laos/.test(laosPanelMarkup) && /target="_blank" rel="noopener noreferrer"/.test(laosPanelMarkup), "Laos capture-meta source must be rendered as a safe external link");
 
-clickWithBubble("stopOnlyFilterChip", "filters");
-assert(stopOnlyCheckbox.checked === true, "Clicking the visible STOP-only filter chip must enable the matcher checkbox");
-assert(stopOtherCheckbox.checked === false, "Enabling STOP-only must leave the opposite stop-sign criterion disabled");
-assert(mainStopOnlyChip.getAttribute("aria-pressed") === "true" && mainStopOnlyChip.classList.contains("active"), "Active STOP-only filter chip must synchronize its ARIA and visual states");
-assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "STOP-only activation must leave the other-text chip inactive");
-assert(allFilterChip.getAttribute("aria-pressed") === "false" && !allFilterChip.classList.contains("active"), "All must deactivate when a matcher-backed main chip is active");
-assert(!countryShape("USA").classList.contains("is-matcher-excluded"), "The visible STOP-only filter chip must run the matcher and retain the USA");
-assert(countryShape("MEX").classList.contains("is-matcher-excluded"), "The visible STOP-only filter chip must run the matcher and exclude Mexico's ALTO sign");
+  {
+  const matcherStart = html.indexOf('<section id="roadMatcher"');
+  const matcherEnd = html.indexOf('<div class="map-card"', matcherStart);
+  const matcherMarkup = html.slice(matcherStart, matcherEnd);
+  assert(matcherStart >= 0 && matcherEnd > matcherStart, "AI-only screenshot area must exist in the HTML");
+  assert(!/<select\b/i.test(matcherMarkup), "AI-only screenshot area must not expose manual matcher selects");
+  assert(!/type=["']checkbox["']/i.test(matcherMarkup), "AI-only screenshot area must not expose manual matcher checkboxes");
+  assert((matcherMarkup.match(/<input\b/gi) || []).length === 1 && /id=["']roadScreenshot["'][^>]*type=["']file["']/i.test(matcherMarkup), "AI-only screenshot area must contain only its image-file input");
+  assert(/id=["']analyzeScreenshotButton["']/.test(matcherMarkup) && /id=["']resetAiAnalysisButton["']/.test(matcherMarkup), "AI-only screenshot area must expose analyze and reset actions");
+  for (const removedId of ["matcherTraffic", "matcherCenterColor", "matcherEdgeColor", "matcherPlateColor", "matcherStopOnly", "matcherStopOther"]) {
+    assert(!nodesById.has(removedId), `${removedId} must not be synthesized by the smoke-test DOM`);
+  }
 
-clickWithBubble("stopOtherFilterChip", "filters");
-assert(stopOnlyCheckbox.checked === false, "Enabling other-text stop signs from the main chip must disable STOP-only");
-assert(stopOtherCheckbox.checked === true, "Clicking the other-text stop-sign chip must enable its matcher checkbox");
-assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Other-text activation must deactivate the STOP-only chip");
-assert(mainStopOtherChip.getAttribute("aria-pressed") === "true" && mainStopOtherChip.classList.contains("active"), "Other-text stop-sign chip must synchronize its ARIA and visual states");
-for (const iso3 of ["MEX", "BRA", "JPN", "MYS"]) {
-  assert(countryShape(iso3).classList.contains("is-matcher-match"), `${iso3} must exactly match the sourced other-text stop-sign filter`);
+  const matcherPanel = nodesById.get("roadMatcher");
+  const allChip = nodesById.get("allFilterChip");
+  const stopOnlyChip = nodesById.get("stopOnlyFilterChip");
+  const stopOtherChip = nodesById.get("stopOtherFilterChip");
+    const whiteEdgeChip = nodesById.get("whiteEdgeFilterChip");
+    const whitePlateChip = nodesById.get("whitePlateFilterChip");
+    const mainChips = [stopOnlyChip, stopOtherChip, whiteEdgeChip, whitePlateChip];
+    const carFeatureChips = [
+      nodesById.get("roofRackFilterChip"), nodesById.get("mirrorFilterChip"), nodesById.get("snorkelFilterChip"),
+      nodesById.get("equipmentFilterChip"), nodesById.get("tapeFilterChip"),
+    ];
+    const captureTypeChips = [
+      nodesById.get("motorcycleFilterChip"), nodesById.get("trekkerFilterChip"), nodesById.get("boatFilterChip"),
+    ];
+    const carMetaChips = [...carFeatureChips, ...captureTypeChips];
+    const evidenceChips = [yellowDiamondFilterChipNode];
+    const allQuickChips = [...mainChips, ...carMetaChips, ...evidenceChips];
+
+    allQuickChips.forEach((chip) => {
+      assert(chip.getAttribute("aria-pressed") === "false" && !chip.classList.contains("active"), "Main clue and Google-car chips must start inactive");
+  });
+  assert(allChip.getAttribute("aria-pressed") === null && !allChip.classList.contains("active"), "Everything-reset control must remain an action rather than a selected filter");
+  assert(allChip.disabled, "Everything-reset control must start disabled without active filters");
+  assert(/^0(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))), "Combined active-filter count must start at zero");
+  assert(/(?:keine|0)[^.!?]{0,30}Filter/i.test(nodeText(nodesById.get("activeFilterSummary"))), "Active-filter summary must announce the empty selection");
+
+  for (const filterId of ["yellowCenterFilterChip", "whiteCenterFilterChip", "yellowEdgeFilterChip", "whiteEdgeFilterChip"]) {
+    clickFilter(filterId);
+    const russiaShape = countryShape("RUS");
+    assert(
+      !russiaShape.classList.contains("is-dimmed") && !russiaShape.classList.contains("is-matcher-excluded"),
+      `Russia must remain a possible candidate for ${nodesById.get(filterId).textContent}`,
+    );
+    clickFilter("allFilterChip");
+  }
+
+  clickFilter("leftTrafficFilterChip");
+  clickFilter("whiteEdgeFilterChip");
+  clickFilter("roofRackFilterChip");
+  assert(/^3(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))), "Combined active-filter count must include standard, quick-clue, and Google-car filters exactly once");
+  assert(!allChip.disabled, "Everything-reset control must become available as soon as a filter is selected");
+  const mixedFilterSummary = nodeText(nodesById.get("activeFilterSummary"));
+  assert(/Linksverkehr/i.test(mixedFilterSummary) && /Weiße Randlinie/i.test(mixedFilterSummary) && /Dachträger/i.test(mixedFilterSummary), "Active-filter summary must name selections from all three filter systems");
+  assert(nodesById.get("activeFilterSummary").getAttribute("aria-live") === "polite", "Combined filter changes must remain available through the polite live summary");
+  clickFilter("allFilterChip");
+  assert(/^0(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))) && /(?:keine|0)[^.!?]{0,30}Filter/i.test(nodeText(nodesById.get("activeFilterSummary"))), "Everything-reset action must clear the combined count and summary");
+  assert(allChip.disabled, "Everything-reset control must disable itself again after clearing every filter");
+  assert(!leftTrafficFilterChipNode.classList.contains("active") && leftTrafficFilterChipNode.getAttribute("aria-pressed") === "false", "Everything-reset action must clear standard country filters too");
+
+  clickFilter("stopOnlyFilterChip");
+  assert(stopOnlyChip.classList.contains("active") && stopOnlyChip.getAttribute("aria-pressed") === "true", "STOP-only main filter must activate independently");
+  assert(!stopOtherChip.classList.contains("active"), "STOP-only must keep the opposite STOP-text filter inactive");
+  assert(hasMatcherResultClass(countryShape("USA")) && !countryShape("USA").classList.contains("is-matcher-excluded"), "STOP-only must retain a country whose sign contains only STOP");
+  assert(countryShape("MEX").classList.contains("is-matcher-excluded") && countryShape("JPN").classList.contains("is-matcher-excluded"), "STOP-only must exclude sourced non-STOP sign texts");
+  assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), "Unknown STOP-sign data must stay possible");
+  clickFilter("stopOnlyFilterChip");
+
+  clickFilter("stopOtherFilterChip");
+  assert(stopOtherChip.classList.contains("active") && !stopOnlyChip.classList.contains("active"), "Other STOP text must activate independently and remain mutually exclusive with STOP-only");
+  assert(hasMatcherResultClass(countryShape("MEX")) && hasMatcherResultClass(countryShape("JPN")), "Other STOP text must retain sourced ALTO and non-Latin examples");
+  assert(countryShape("USA").classList.contains("is-matcher-excluded"), "Other STOP text must exclude a sourced STOP-only country");
+  clickFilter("stopOtherFilterChip");
+
+  clickFilter("yellowDiamondFilterChip");
+  assert(yellowDiamondFilterChipNode.classList.contains("active") && hasMatcherResultClass(countryShape("USA")), "Yellow-diamond warning-sign filter must retain a sourced matching country");
+  assert(countryShape("DEU").classList.contains("is-matcher-excluded"), "Yellow-diamond warning-sign filter must exclude a sourced white-triangle country");
+  assert(countryShape("ATA").classList.contains("is-matcher-possible") && !countryShape("ATA").classList.contains("is-matcher-excluded"), "Unknown warning-sign data must remain possible");
+  clickFilter("yellowDiamondFilterChip");
+
+  clickFilter("whiteEdgeFilterChip");
+  assert(whiteEdgeChip.classList.contains("active") && hasMatcherResultClass(countryShape("USA")), "White edge-line filter must work without a screenshot matcher form");
+  assert(countryShape("ZAF").classList.contains("is-matcher-excluded") && countryShape("BWA").classList.contains("is-matcher-excluded"), "White edge lines must exclude sourced yellow-edge examples");
+  clickFilter("whiteEdgeFilterChip");
+
+  clickFilter("whitePlateFilterChip");
+  assert(whitePlateChip.classList.contains("active") && hasMatcherResultClass(countryShape("DEU")), "White-plate filter must work without a screenshot matcher form");
+  assert(countryShape("NLD").classList.contains("is-matcher-excluded") && countryShape("LUX").classList.contains("is-matcher-excluded"), "White plates must exclude sourced yellow-plate countries");
+    clickFilter("whitePlateFilterChip");
+
+    clickFilter("roofRackFilterChip");
+    assert(nodesById.get("roofRackFilterChip").classList.contains("active"), "Roof-rack filter must activate from the visible Google-car row");
+    assert(countryShape("GTM").classList.contains("is-matcher-match") && countryShape("GHA").classList.contains("is-matcher-match"), "Roof-rack filter must strongly retain sourced Guatemala and Ghana variants");
+    assert(countryShape("ATA").classList.contains("is-matcher-possible") && !countryShape("ATA").classList.contains("is-matcher-excluded"), "Countries without capture-meta data must stay possible instead of being falsely excluded");
+
+    clickFilter("mirrorFilterChip");
+    assert(countryShape("GTM").classList.contains("is-matcher-match") && countryShape("SEN").classList.contains("is-matcher-match"), "Roof-rack and mirror filters must match a single documented combined variant");
+    assert(countryShape("DOM").classList.contains("is-matcher-possible") && !countryShape("DOM").classList.contains("is-matcher-match"), "A roof-rack-only or tape variant must not become a false exact roof-rack and mirror match");
+    assert(countryShape("UGA").classList.contains("is-matcher-possible") && !countryShape("UGA").classList.contains("is-matcher-match"), "Separate mirror-only Uganda coverage must not satisfy a combined roof-rack and mirror observation");
+
+    clickFilter("snorkelFilterChip");
+    assert(countryShape("MNG").classList.contains("is-matcher-match"), "Mongolia must match the sourced roof-rack, mirror, and snorkel combination");
+    assert(countryShape("KEN").classList.contains("is-matcher-possible") && !countryShape("KEN").classList.contains("is-matcher-match"), "Kenya's roof-rack and snorkel variant must not invent a visible mirror");
+    clickFilter("equipmentFilterChip");
+    assert(countryShape("MNG").classList.contains("is-matcher-match"), "Visible equipment must combine with Mongolia's documented vehicle variant");
+
+    clickFilter("allFilterChip");
+    clickFilter("roofRackFilterChip");
+    clickFilter("tapeFilterChip");
+    assert(countryShape("DOM").classList.contains("is-matcher-match") && countryShape("GHA").classList.contains("is-matcher-match"), "Roof-rack and tape filters must retain the sourced Dominican and Ghanaian combinations");
+    assert(countryShape("GTM").classList.contains("is-matcher-possible") && !countryShape("GTM").classList.contains("is-matcher-match"), "Guatemala's roof-rack and mirror variant must not invent tape");
+
+    clickFilter("motorcycleFilterChip");
+    assert(carFeatureChips.every((chip) => !chip.classList.contains("active") && chip.getAttribute("aria-pressed") === "false"), "Activating a capture type must clear incompatible car-equipment observations");
+    assert(nodesById.get("motorcycleFilterChip").classList.contains("active") && countryShape("VNM").classList.contains("is-matcher-match"), "Motorcycle capture filter must strongly retain sourced Vietnam coverage");
+    clickFilter("trekkerFilterChip");
+    assert(!nodesById.get("motorcycleFilterChip").classList.contains("active") && nodesById.get("trekkerFilterChip").classList.contains("active"), "Trekker must replace the mutually exclusive motorcycle capture type");
+    assert(countryShape("MDG").classList.contains("is-matcher-match") && countryShape("CRI").classList.contains("is-matcher-match"), "Trekker filter must retain sourced Madagascar and Costa Rica variants without claiming they are trekker-only");
+    clickFilter("boatFilterChip");
+    assert(!nodesById.get("trekkerFilterChip").classList.contains("active") && nodesById.get("boatFilterChip").classList.contains("active"), "Boat must replace the mutually exclusive trekker capture type");
+    assert(countryShape("MDG").classList.contains("is-matcher-match") && countryMapNode("MLT").classList.contains("is-matcher-match"), "Boat filter must retain sourced Madagascar and Malta variants");
+    clickFilter("snorkelFilterChip");
+    assert(!nodesById.get("boatFilterChip").classList.contains("active") && nodesById.get("snorkelFilterChip").classList.contains("active"), "Activating car equipment must clear an incompatible capture type");
+    assert(countryShape("KEN").classList.contains("is-matcher-match") && countryShape("MNG").classList.contains("is-matcher-match"), "Snorkel filter must retain the sourced Kenyan and Mongolian car variants");
+
+    clickFilter("allFilterChip");
+    clickFilter("stopOnlyFilterChip");
+    clickFilter("whiteEdgeFilterChip");
+    clickFilter("whitePlateFilterChip");
+    clickFilter("equipmentFilterChip");
+    clickFilter("allFilterChip");
+    allQuickChips.forEach((chip) => {
+      assert(!chip.classList.contains("active") && chip.getAttribute("aria-pressed") === "false", "All must reset every independent main clue and Google-car filter");
+  });
+  assert(allChip.getAttribute("aria-pressed") === null && !allChip.classList.contains("active"), "Everything-reset control must not masquerade as an active toggle after clearing filters");
+  assert(/^0(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))), "Everything-reset action must restore the visible active-filter count to zero");
+  allCountryMapNodes().forEach((node) => {
+    assert(!node.classList.contains("is-matcher-match") && !node.classList.contains("is-matcher-possible") && !node.classList.contains("is-matcher-excluded"), "All must clear main-filter map classes");
+  });
+
+  if (matcherPanel.hidden && !matcherPanel.classList.contains("open")) fire("matcherButton", "click");
+  assert(!matcherPanel.hidden || matcherPanel.classList.contains("open"), "Screenshot button must reveal the AI-only analysis area");
+  await settleAsync();
+  assert(nodesById.get("aiHelperStatus").dataset.state === "connected", "Opening the AI area must detect the mocked local helper");
+  assert(nodesById.get("analyzeScreenshotButton").disabled, "AI analysis must remain disabled without a screenshot");
+
+  const screenshotInput = nodesById.get("roadScreenshot");
+  screenshotInput.files = [{
+    name: "street-reference.png",
+    type: "image/png",
+    size: 4096,
+    dataUrl: "data:image/png;base64,VEVTVF9TQ1JFRU5TSE9U",
+  }];
+  const analyzeRequestsBeforeSelection = helperRequests.filter((request) => request.url.endsWith("/analyze")).length;
+  fire("roadScreenshot", "change");
+  await settleAsync();
+  const screenshotObjectUrl = nodesById.get("matcherPreviewImage").src;
+  assert(screenshotObjectUrl.startsWith("blob:local-test/"), "Screenshot preview must use a local object URL");
+  assert(!nodesById.get("matcherPreview").hidden, "Choosing a screenshot must reveal its local preview");
+  assert(!nodesById.get("analyzeScreenshotButton").disabled, "A valid screenshot must enable AI analysis");
+  assert(helperRequests.filter((request) => request.url.endsWith("/analyze")).length === analyzeRequestsBeforeSelection, "Selecting a screenshot must not send it before the deliberate AI click");
+
+  clickFilter("rightTrafficFilterChip");
+  clickFilter("whiteEdgeFilterChip");
+  clickFilter("roofRackFilterChip");
+  assert(/^3(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))), "The AI test must begin with three active filters from different groups");
+
+  nextAnalysisPayload = {
+    ok: true,
+    model: "smoke-test-vision",
+    appliedFilterContext: {
+      version: 1,
+      activeFilters: [
+        { key: "traffic", value: "right" },
+        { key: "edgeColor", value: "white" },
+        { key: "vehicleFeature", value: "roof-rack" },
+      ],
+    },
+    summary: "Das vollständige Straßenbild wurde gemeinsam ausgewertet.",
+    observations: {},
+    countryAnalysis: {
+      summary: "Gelbe Kennzeichen, flache Landschaft und markante Leitpfosten sprechen für Nordwesteuropa.",
+      bestGuess: {
+        iso3: "NLD",
+        country: "Niederlande",
+        confidence: 0.91,
+        reasons: ["Gelbe Kennzeichen und flache Landschaft passen gemeinsam am besten."],
+        evidence: ["Gelbe Kennzeichen", "Entwässerungsgraben"],
+        evidenceCategories: ["plates", "landscape"],
+      },
+      imageClues: [
+        { category: "vegetation", observation: "Dichte grüne Wiesen und Laubbäume.", confidence: 0.88 },
+        { category: "bollards", observation: "Weiße Leitpfosten mit schwarzem Feld.", confidence: 0.91 },
+        { category: "landscape", observation: "Sehr flaches, entwässertes Gelände.", confidence: 0.86 },
+        { category: "road", observation: "Schmale Asphaltstraße mit weißen Randlinien.", confidence: 0.84 },
+        { category: "signs", observation: "Europäisches Dreieck-Warnschild.", confidence: 0.76 },
+        { category: "plates", observation: "Gelbe Kennzeichen sind sichtbar.", confidence: 0.93 },
+        { category: "vehicle-meta", observation: "Zwei Querstreben und ein Seitenspiegel sind am Aufnahmefahrzeug sichtbar.", confidence: 0.94 },
+        { category: "magic", observation: "Dieses unbekannte Merkmal darf nicht erscheinen.", confidence: 1 },
+        { category: "climate", observation: "Ungültige Konfidenz.", confidence: 4 },
+      ],
+      likely: [
+        { iso3: "NLD", country: "Niederlande", confidence: 0.91, reasons: ["Gelbe Kennzeichen und flache Landschaft passen zusammen."], evidence: ["Gelbe Kennzeichen", "Entwässerungsgraben"], evidenceCategories: ["plates", "landscape"] },
+        { iso3: "DEU", country: "Deutschland", confidence: 0.59, reasons: ["Leitpfosten wirken ähnlich."], evidence: ["Weiß-schwarzer Leitpfosten"], evidenceCategories: ["bollards"] },
+        { iso3: "JPN", country: "Japan", confidence: 0.84, reasons: ["Ein Einzelhinweis war zunächst plausibel."], evidence: ["Leitpfosten"], evidenceCategories: ["bollards"] },
+        { iso3: "ZZZ", country: "Atlantis", confidence: 0.99, reasons: ["Ungültiger Atlas-Code."], evidence: ["Nichts"], evidenceCategories: ["other"] },
+        { iso3: "BEL", country: "Belgien", confidence: "hoch", reasons: ["Ungültiger Konfidenzwert."], evidence: ["Nichts"], evidenceCategories: ["other"] },
+      ],
+      possible: [
+        { iso3: "BEL", country: "Belgien", confidence: 0.68, reasons: ["Grenzregion bleibt denkbar."], evidence: ["Flache Landschaft"], evidenceCategories: ["landscape"] },
+        { iso3: "JPN", country: "Japan", confidence: 0.70, reasons: ["Die übrigen Hinweise widersprechen der ersten Einordnung."], evidence: ["Europäisches Warnschild"], evidenceCategories: ["signs"] },
+      ],
+      excluded: [
+        { iso3: "ZAF", country: "Südafrika", confidence: 0.88, reasons: ["Kennzeichen- und Landschaftsbild widersprechen deutlich."], evidence: ["Gelbe europäische Kennzeichen", "Grüne Polderlandschaft"], evidenceCategories: ["vehicle-meta", "plates"] },
+        { iso3: "BWA", country: "Botswana", confidence: 0.70, reasons: ["Die Landschaft wirkt untypisch."], evidence: ["Feuchte grüne Wiesen"], evidenceCategories: ["landscape"] },
+        { iso3: "KEN", country: "Kenia", confidence: 0.97, reasons: ["Das Fahrzeugmeta wirke unpassend."], evidence: ["Kein Dachträger erkennbar"], evidenceCategories: ["vehicle-meta"] },
+        { iso3: "BRA", country: "Brasilien", confidence: 0.96, reasons: ["Vegetation und Klima wirkten unpassend."], evidence: ["Trockene Vegetation"], evidenceCategories: ["vegetation", "climate"] },
+        { iso3: "CAN", country: "Kanada", confidence: 0.95, reasons: ["Ausschluss ohne strukturierte Belegkategorie."], evidence: ["Unspezifischer Eindruck"], evidenceCategories: [] },
+        { iso3: "ARG", country: "Argentinien", confidence: 0.94, reasons: ["Ausschluss mit unbekannter Kategorie."], evidence: ["Unbekannter Hinweis"], evidenceCategories: ["magic"] },
+        { iso3: "AUS", country: "Australien", confidence: 0.93, reasons: ["Nur schwache Umgebungshinweise."], evidence: ["Flache Landschaft und Kameraartefakt"], evidenceCategories: ["landscape", "camera", "other"] },
+        { iso3: "NO!", country: "Ungültig", confidence: 0.95, reasons: ["Ungültiger ISO-Code."], evidence: ["Nichts"], evidenceCategories: ["road"] },
+      ],
+    },
+    warnings: ["Straßenschild im Hintergrund ist teilweise verdeckt."],
+  };
+
+  fire("analyzeScreenshotButton", "click");
+  await settleAsync(10);
+  const analysisRequests = helperRequests.filter((request) => request.url.endsWith("/analyze"));
+  assert(analysisRequests.length === analyzeRequestsBeforeSelection + 1, "AI analysis must send exactly one request after the deliberate click");
+  const analysisRequest = analysisRequests.at(-1);
+  assert(analysisRequest.url === "http://127.0.0.1:43117/analyze", "AI screenshot must only be sent to the fixed loopback helper endpoint");
+  assert(analysisRequest.options.method === "POST", "AI helper analysis must use POST");
+  assert(analysisRequest.options.headers["X-GeoGuessr-Helper"] === "1", "AI helper analysis must send the required helper-identification header");
+  assert(!/authorization|bearer|groq.?key|api.?key/i.test(JSON.stringify(analysisRequest.options.headers)), "Browser request headers must never contain a Groq credential");
+  const analysisBody = JSON.parse(analysisRequest.options.body);
+  assert(JSON.stringify(Object.keys(analysisBody).sort()) === JSON.stringify(["fileName", "filterContext", "imageDataUrl"]), "AI helper request body must contain the screenshot fields and the structured filter context only");
+  assert(analysisBody.fileName === "street-reference.png" && analysisBody.imageDataUrl.startsWith("data:image/png;base64,"), "AI helper request must carry the selected image and safe file name");
+  assert(analysisBody.filterContext?.version === 1 && Array.isArray(analysisBody.filterContext.activeFilters), "AI helper request must use version 1 of the structured active-filter snapshot");
+  const sentFilterPairs = analysisBody.filterContext.activeFilters
+    .map(({ key, value, ...unexpected }) => ({ key, value, unexpectedKeys: Object.keys(unexpected) }))
+    .sort((left, right) => `${left.key}:${left.value}`.localeCompare(`${right.key}:${right.value}`));
+  assert(sentFilterPairs.every((item) => item.unexpectedKeys.length === 0), "AI filter context must not leak free-form labels or unrelated UI data");
+  assert(JSON.stringify(sentFilterPairs.map(({ key, value }) => ({ key, value }))) === JSON.stringify([
+    { key: "edgeColor", value: "white" },
+    { key: "traffic", value: "right" },
+    { key: "vehicleFeature", value: "roof-rack" },
+  ]), "AI helper request must carry all active filters as the documented key/value set, independent of DOM order");
+
+  const aiResult = nodesById.get("aiAnalysisResult");
+  const aiResultText = nodeText(aiResult);
+  assert(aiResult.dataset.state === "success" && !aiResult.hidden, "Successful AI analysis must expose an accessible result");
+  const bestGuessCards = aiResult.querySelectorAll(".ai-best-guess");
+  assert(bestGuessCards.length === 1 && bestGuessCards[0].id === "aiBestGuess", "Every successful analysis must render exactly one prominent #aiBestGuess card");
+  const bestGuessText = nodeText(bestGuessCards[0]);
+  assert(/Niederlande/.test(bestGuessText) && /91\s*%/.test(bestGuessText), "Prominent best guess must show the chosen country and its confidence");
+  assert(/Rechtsverkehr/i.test(aiResultText) && /Weiße Randlinie/i.test(aiResultText) && /Dachträger/i.test(aiResultText), "AI result must show local human-readable labels for the exact filter snapshot that was sent");
+  assert(/Im Gesamtbild erkannte Hinweise/.test(aiResultText), "AI result must describe the screenshot as a whole image");
+  assert(/Vegetation/.test(aiResultText) && /Leitpfosten \/ Bollards/.test(aiResultText) && /Landschaft/.test(aiResultText), "AI result must visibly cover vegetation, bollards, and landscape clues");
+    assert(/Straße und Markierungen/.test(aiResultText) && /Verkehrsschilder/.test(aiResultText) && /Kennzeichen/.test(aiResultText), "AI result must also show road, sign, and plate clues");
+    assert(/Google-Car \/ Fahrzeug-Meta/.test(aiResultText) && /Zwei Querstreben und ein Seitenspiegel/.test(aiResultText), "AI result must render the canonical vehicle-meta clue and its direct visual observation");
+  assert(!/unbekannte Merkmal/.test(aiResultText) && !/Ungültige Konfidenz/.test(aiResultText), "Unknown clue categories and invalid clue confidence values must be ignored");
+  assert(/Wahrscheinlich \/ einschließen/.test(aiResultText) && /Noch möglich/.test(aiResultText) && /Ausdrücklich ausgeschlossen/.test(aiResultText), "AI result must render all three direct country groups");
+  assert(/Niederlande/.test(aiResultText) && /Gelbe Kennzeichen und flache Landschaft/.test(aiResultText) && /Sichtbar: Gelbe Kennzeichen/.test(aiResultText), "Likely-country card must show name, reason, and direct visual evidence");
+  assert(!/Atlantis/.test(aiResultText) && !/Ungültig/.test(aiResultText), "Invalid ISO entries must not appear in direct country lists");
+  assert(/3 ungültige oder unbekannte Ländereinträge wurden sicher ignoriert/.test(aiResultText), "Ignored country entries must be reported safely");
+  assert(countryShape("NLD").classList.contains("is-ai-best-guess"), "The single best guess must receive its dedicated prominent map class");
+  assert(countryShape("NLD").classList.contains("is-ai-likely") && countryShape("NLD").classList.contains("is-matcher-match"), "High-confidence likely country must receive the direct likely map class");
+    for (const iso3 of ["BEL", "DEU", "JPN", "BWA", "KEN", "BRA", "CAN", "ARG", "AUS"]) {
+      assert(countryShape(iso3).classList.contains("is-ai-possible") && countryShape(iso3).classList.contains("is-matcher-possible"), `${iso3} must be mapped conservatively as possible`);
+    }
+  assert(!countryShape("DEU").classList.contains("is-ai-likely"), "A likely candidate below 0.60 confidence must be downgraded to possible");
+  assert(!countryShape("BWA").classList.contains("is-ai-excluded"), "An exclusion below 0.72 confidence must be downgraded to possible");
+    assert(!countryShape("JPN").classList.contains("is-ai-likely"), "A country placed in contradictory response groups must remain only possible");
+    assert(countryShape("ZAF").classList.contains("is-ai-excluded") && countryShape("ZAF").classList.contains("is-matcher-excluded"), "A sufficiently confident explicit contradiction must receive the excluded map class");
+    for (const iso3 of ["KEN", "BRA", "CAN", "ARG", "AUS"]) {
+      assert(!countryShape(iso3).classList.contains("is-ai-excluded"), `${iso3} must not be hard-excluded without a robust evidence category`);
+    }
+  assert(countryShape("USA").classList.contains("is-ai-unassessed") && countryShape("USA").classList.contains("is-dimmed"), "Unmentioned countries must stay visibly unassessed instead of becoming excluded");
+    assert(nodesById.get("worldMap").classList.contains("has-ai-analysis"), "World map must expose the active direct AI analysis state");
+    assert(nodesById.get("resetAiAnalysisButton").disabled === false, "Successful direct analysis must enable its reset action");
+
+    assert(nodesById.get("roofRackFilterChip").classList.contains("active") && countryShape("NLD").classList.contains("is-ai-likely"), "Google-car filters sent with the screenshot must stay active while the AI result is shown");
+
+  fire("resetAiAnalysisButton", "click");
+  assert(aiResult.hidden && nodesById.get("resetAiAnalysisButton").disabled, "AI reset must hide the direct result and disable itself");
+  assert(!nodesById.get("matcherPreview").hidden && !nodesById.get("analyzeScreenshotButton").disabled, "AI reset must keep the chosen screenshot ready for a new analysis");
+  assert(!nodesById.get("worldMap").classList.contains("has-ai-analysis"), "AI reset must clear the map's analysis state");
+  allCountryMapNodes().forEach((node) => {
+    assert(!node.classList.contains("is-ai-best-guess") && !node.classList.contains("is-ai-likely") && !node.classList.contains("is-ai-possible") && !node.classList.contains("is-ai-excluded") && !node.classList.contains("is-ai-unassessed"), "AI reset must remove the best-guess highlight and every direct map category");
+  });
+
+    clickFilter("allFilterChip");
+    assert(/^0(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))), "The no-filter AI test must clear the previous filter snapshot first");
+    nextAnalysisPayload = {
+      ok: true,
+      model: "smoke-test-vision",
+      appliedFilterContext: { version: 1, activeFilters: [] },
+      summary: "Unsichere Testanalyse ohne aktive Filter.",
+      observations: {},
+      countryAnalysis: {
+        summary: "Mehrere Länder sind ähnlich; Belgien bleibt der beste einzelne Tipp.",
+        imageClues: [
+          { category: "landscape", observation: "Flaches, grünes Gelände.", confidence: 0.42 },
+        ],
+        bestGuess: {
+          iso3: "BEL",
+          country: "Belgien",
+          confidence: 0.34,
+          reasons: ["Unter den unsicheren Alternativen passt Belgien noch am ehesten."],
+          evidence: ["Flaches Gelände"],
+          evidenceCategories: ["landscape"],
+        },
+        likely: [],
+        possible: [
+          { iso3: "BEL", country: "Belgien", confidence: 0.34, reasons: ["Nur schwache Hinweise."], evidence: ["Flaches Gelände"], evidenceCategories: ["landscape"] },
+        ],
+        excluded: [],
+      },
+      warnings: ["Der einzelne Tipp ist wegen der niedrigen Konfidenz unsicher."],
+    };
+
+    fire("analyzeScreenshotButton", "click");
+    await settleAsync(10);
+    const noFilterRequest = helperRequests.filter((request) => request.url.endsWith("/analyze")).at(-1);
+    const noFilterBody = JSON.parse(noFilterRequest.options.body);
+    assert(noFilterBody.filterContext?.version === 1 && Array.isArray(noFilterBody.filterContext.activeFilters) && noFilterBody.filterContext.activeFilters.length === 0, "Screenshot analysis must still run with a valid empty filter context when no filter is selected");
+    const uncertainBestGuessCards = aiResult.querySelectorAll(".ai-best-guess");
+    assert(aiResult.dataset.state === "success" && uncertainBestGuessCards.length === 1, "A low-confidence analysis without filters must still finish with exactly one visible best guess");
+    const uncertainBestGuessText = nodeText(uncertainBestGuessCards[0]);
+    assert(/Belgien/.test(uncertainBestGuessText) && /34\s*%/.test(uncertainBestGuessText), "Low-confidence best guess must remain visibly committed to one country with its confidence");
+    assert(/unsicher|niedrig|nur möglich|offene Möglichkeit/i.test(uncertainBestGuessText), "Low-confidence best guess must be clearly labelled as uncertain rather than overstated");
+    assert(countryShape("BEL").classList.contains("is-ai-best-guess") && countryShape("BEL").classList.contains("is-ai-possible"), "Low-confidence best guess must stay highlighted while retaining possible status");
+    assert(!countryShape("BEL").classList.contains("is-ai-excluded") && !allCountryMapNodes().some((node) => node.classList.contains("is-ai-excluded")), "Low confidence alone must never create a hard exclusion");
+
+    clickFilter("stopOnlyFilterChip");
+    assert(!nodesById.get("worldMap").classList.contains("has-ai-analysis") && !allCountryMapNodes().some((node) => node.classList.contains("is-ai-best-guess")), "Changing a filter after analysis must immediately invalidate the stale AI result and its best-guess highlight");
+    assert(!aiResult.hidden && /Filter[^.!?]{0,80}(?:geändert|erneut)|erneut[^.!?]{0,80}analysier/i.test(nodeText(aiResult)), "Changing a filter after analysis must visibly ask for a fresh analysis");
+    clickFilter("whitePlateFilterChip");
+    clickFilter("roofRackFilterChip");
+    clickFilter("allFilterChip");
+    assert(aiResult.hidden && !nodesById.get("worldMap").classList.contains("has-ai-analysis"), "All must clear a direct AI analysis as well as main filters");
+    assert(!allCountryMapNodes().some((node) => node.classList.contains("is-ai-best-guess")), "All must clear the dedicated best-guess map highlight");
+    allQuickChips.forEach((chip) => {
+      assert(!chip.classList.contains("active") && chip.getAttribute("aria-pressed") === "false", "All must reset main and Google-car filters even while AI analysis was active");
+  });
+
+  const filterChangeCancellation = deferNextAnalysisResponse();
+  const requestsBeforeFilterChangeCancellation = helperRequests.filter((request) => request.url.endsWith("/analyze")).length;
+  fire("analyzeScreenshotButton", "click");
+  await settleAsync();
+  const filterChangeRequest = helperRequests.filter((request) => request.url.endsWith("/analyze")).at(-1);
+  assert(helperRequests.filter((request) => request.url.endsWith("/analyze")).length === requestsBeforeFilterChangeCancellation + 1, "Filter-change cancellation test must reach the analysis endpoint");
+  clickFilter("whiteEdgeFilterChip");
+  await settleAsync();
+  assert(filterChangeRequest.options.signal?.aborted === true, "Changing a filter during analysis must abort the in-flight request tied to the old snapshot");
+  assert(!aiResult.hidden && /Filter[^.!?]{0,80}(?:geändert|erneut)|erneut[^.!?]{0,80}analysier/i.test(nodeText(aiResult)), "Changing a filter during analysis must request a new screenshot analysis");
+  filterChangeCancellation.resolve();
+  await settleAsync(10);
+  assert(!nodesById.get("worldMap").classList.contains("has-ai-analysis") && !allCountryMapNodes().some((node) => node.classList.contains("is-ai-best-guess")), "A response from the old filter snapshot must never restore stale map results");
+  clickFilter("allFilterChip");
+
+  // A deliberately delayed response simulates a helper that finishes after the
+  // browser has already cancelled the request. The mock ignores AbortSignal on
+  // purpose so the stale-response guard itself is exercised.
+  const removeCancellation = deferNextAnalysisResponse();
+  const requestsBeforeRemoveCancellation = helperRequests.filter((request) => request.url.endsWith("/analyze")).length;
+  fire("analyzeScreenshotButton", "click");
+  await settleAsync();
+  assert(helperRequests.filter((request) => request.url.endsWith("/analyze")).length === requestsBeforeRemoveCancellation + 1, "Delayed remove-cancellation test must reach the analysis endpoint");
+  assert(nodesById.get("aiHelperStatus").dataset.state === "checking" && /KI analysiert/.test(nodesById.get("analyzeScreenshotButton").textContent), "Delayed analysis must visibly enter its running state");
+  fire("removeScreenshot", "click");
+  await settleAsync();
+  removeCancellation.resolve();
+  await settleAsync(10);
+  assert(nodesById.get("matcherPreview").hidden, "Removing a screenshot must hide its preview");
+  assert(revokedObjectUrls.includes(screenshotObjectUrl), "Removing a screenshot must revoke its object URL");
+  assert(aiResult.hidden && nodesById.get("analyzeScreenshotButton").disabled, "Removing a screenshot must clear AI results and disable analysis");
+  assert(!nodesById.get("worldMap").classList.contains("has-ai-analysis") && !allCountryMapNodes().some((node) => node.classList.contains("is-ai-likely") || node.classList.contains("is-ai-possible") || node.classList.contains("is-ai-excluded")), "A stale response after removing the image must not restore map results");
+  assert(nodesById.get("aiHelperStatus").dataset.state === "connected" && !/läuft|analysiert/i.test(nodeText(nodesById.get("aiHelperStatus"))), "A stale response after removing the image must not restore a running status");
+
+  screenshotInput.files = [{
+    name: "cancel-with-all.jpg",
+    type: "image/jpeg",
+    size: 3072,
+    dataUrl: "data:image/jpeg;base64,QUJPUlRfQUxM",
+  }];
+  fire("roadScreenshot", "change");
+  await settleAsync();
+  const allCancellationObjectUrl = nodesById.get("matcherPreviewImage").src;
+  const allCancellation = deferNextAnalysisResponse();
+  const requestsBeforeAllCancellation = helperRequests.filter((request) => request.url.endsWith("/analyze")).length;
+  fire("analyzeScreenshotButton", "click");
+  await settleAsync();
+  const runningDashboardResetRequests = helperRequests.filter((request) => request.url.endsWith("/analyze"));
+  assert(runningDashboardResetRequests.length === requestsBeforeAllCancellation + 1, "Delayed dashboard-reset cancellation test must reach the analysis endpoint");
+  const runningDashboardResetRequest = runningDashboardResetRequests.at(-1);
+  assert(nodesById.get("allFilterChip").disabled === false, "Everything-reset must remain available while an AI analysis is running, even with zero selected filters");
+  assert(/^0(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))) && /KI-Analyse läuft/i.test(nodeText(nodesById.get("activeFilterSummary"))), "Filter dashboard must announce the running AI analysis without counting it as a selected filter");
+  clickFilter("allFilterChip");
+  await settleAsync();
+  assert(runningDashboardResetRequest.options.signal?.aborted === true, "Everything-reset from the filter dashboard must abort the in-flight AI request");
+  assert(nodesById.get("allFilterChip").disabled === true, "Everything-reset must disable itself after cancelling the running analysis and clearing all state");
+  assert(/^0(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))) && /Keine Filter aktiv/i.test(nodeText(nodesById.get("activeFilterSummary"))) && !/KI-Analyse läuft/i.test(nodeText(nodesById.get("activeFilterSummary"))), "Dashboard reset must immediately restore a neutral count and live summary after AI cancellation");
+  allCancellation.resolve();
+  await settleAsync(10);
+  assert(aiResult.hidden && !nodesById.get("worldMap").classList.contains("has-ai-analysis"), "A stale response after All must not restore results or the AI map state");
+  assert(!allCountryMapNodes().some((node) => node.classList.contains("is-ai-likely") || node.classList.contains("is-ai-possible") || node.classList.contains("is-ai-excluded") || node.classList.contains("is-ai-unassessed")), "A stale response after All must not restore any direct country category");
+  assert(nodesById.get("aiHelperStatus").dataset.state === "connected" && !/läuft|analysiert/i.test(nodeText(nodesById.get("aiHelperStatus"))), "A stale response after All must not restore a running status");
+  assert(!nodesById.get("analyzeScreenshotButton").disabled && nodesById.get("analyzeScreenshotButton").textContent === "Mit KI analysieren", "All cancellation must leave the retained screenshot ready for a fresh analysis");
+  fire("removeScreenshot", "click");
+  assert(revokedObjectUrls.includes(allCancellationObjectUrl), "Cleanup after All cancellation must revoke the retained screenshot URL");
+
+  helperOnline = false;
+  screenshotInput.files = [{ name: "offline-test.webp", type: "image/webp", size: 2048 }];
+  fire("roadScreenshot", "change");
+  await settleAsync();
+  const analyzeRequestsBeforeOfflineClick = helperRequests.filter((request) => request.url.endsWith("/analyze")).length;
+  fire("analyzeScreenshotButton", "click");
+  await settleAsync(10);
+  assert(nodesById.get("aiHelperStatus").dataset.state === "offline", "An unreachable local helper must produce an explicit offline state");
+  assert(aiResult.dataset.state === "error" && /nicht erreichbar/i.test(nodeText(aiResult)), "Offline analysis must show a useful local-helper error");
+  assert(!/manuell(?:e|er|en)? Screenshot|manuell(?:e|er|en)? Merkmal/i.test(nodeText(aiResult)), "Offline fallback must not promise a removed manual screenshot matcher");
+  assert(helperRequests.filter((request) => request.url.endsWith("/analyze")).length === analyzeRequestsBeforeOfflineClick, "Offline health failure must prevent screenshot transmission");
+  assert(!nodesById.get("worldMap").classList.contains("has-ai-analysis"), "Offline mode must not invent a country analysis");
+
+    clickFilter("whitePlateFilterChip");
+    assert(hasMatcherResultClass(countryShape("DEU")) && countryShape("NLD").classList.contains("is-matcher-excluded"), "Manual main filters outside the AI area must continue working while the helper is offline");
+    clickFilter("allFilterChip");
+    assert(whitePlateChip.getAttribute("aria-pressed") === "false" && /^0(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))), "Everything-reset action must clear an offline main-filter fallback and its count");
+    clickFilter("roofRackFilterChip");
+    assert(countryShape("GTM").classList.contains("is-matcher-match") && countryShape("ATA").classList.contains("is-matcher-possible"), "Source-backed Google-car filters must continue working locally while the optional helper is offline");
+    clickFilter("allFilterChip");
+  helperOnline = true;
+  fire("removeScreenshot", "click");
+
+  console.log(JSON.stringify({
+    status: "OK",
+    countryPaths: paths.children.length,
+    clipPaths: clips.children.length,
+    topBorders: borders.children.length,
+    worldRoadSamples: worldCount,
+    regionalRoadSamples: regionalCount,
+    countryRoadSamples: countryCount,
+    floatingRoadBadges: 0,
+    maxWorldSurfaceWidth: Math.max(...surfaceWidths),
+    selectedSmallCountrySample: true,
+    neutralInitialCountryPanel: true,
+    countryPanelSelectionRouting: true,
+    pointerCapturedCountrySelection: true,
+    aiOnlyScreenshotControls: true,
+    aiLocalScreenshotPreview: true,
+    aiHealthCheck: true,
+    aiClickOnlyUpload: true,
+    aiLoopbackContract: true,
+    aiStructuredFilterContext: true,
+    aiAnalysisWithoutFilters: true,
+    aiExactlyOneBestGuess: true,
+    aiBestGuessProminentAndMapped: true,
+    aiLowConfidenceBestGuessVisibleAsUncertain: true,
+    aiDirectCountryAnalysis: true,
+    aiCountryMapClassesAndLists: true,
+    aiWholeImageClues: ["vegetation", "bollards", "landscape", "road", "signs", "plates", "vehicle-meta"],
+    aiLikelyConfidenceThreshold: 0.60,
+    aiExcludedConfidenceThreshold: 0.72,
+    aiLowConfidenceConservative: true,
+    aiRobustEvidenceCategoryRequiredForExclusion: true,
+    aiWeakOrUnknownExclusionCategoriesDowngraded: true,
+    aiInvalidIsoAndValuesIgnored: true,
+    aiUnassessedNotExcluded: true,
+    aiOfflineNoAnalysis: true,
+    aiResetBehavior: true,
+    dashboardResetCancelsRunningAi: true,
+    aiStaleResponseCancellation: ["filterChange", "removeScreenshot", "all"],
+    independentMainClueFilters: ["stopOnly", "stopOther", "whiteEdge", "whitePlate"],
+    independentGoogleCarFilters: ["roof-rack", "mirrors", "snorkel", "equipment", "tape"],
+    exclusiveCaptureTypeFilters: ["motorcycle", "trekker", "boat"],
+    captureMetaUnknownCountriesRemainPossible: true,
+    captureMetaSingleVariantCombinations: true,
+    mainFiltersWorkOffline: true,
+    allResetsMainFiltersAndAi: true,
+    groupedFilterDashboard: ["Basis", "Straße", "Umgebung", "Objekte", "Kamera"],
+    additionalGeoGuessrFilters: ["Sprache", "Warnschildform", "Kennzeichenanordnung", "Leitpfosten", "Masten", "Straßenrand", "Kamerahöhe"],
+    russiaVariableRoadLineFilters: ["yellowCenter", "whiteCenter", "yellowEdge", "whiteEdge"],
+    filterDashboardKeyboardAndAria: true,
+    combinedFilterCountAndSummary: true,
+    countryPanelEvidenceSources: true,
+    selectedCountryLocalFlags: true,
+    philippineConcreteSlabs: true,
+    versionedDismissibleUpdateNotice: true,
+  }, null, 2));
+  return;
 }
-for (const iso3 of ["USA", "GBR", "FRA"]) {
-  assert(countryShape(iso3).classList.contains("is-matcher-excluded"), `${iso3} must be excluded because its sourced sign shows only STOP`);
-}
-assert(countryShape("CAN").classList.contains("is-matcher-possible"), "Canada's regionally variable stop-sign text must remain possible");
-assert(countryShape("ATA").classList.contains("is-matcher-possible"), "Unknown stop-sign text must remain possible for the other-text filter");
 
-clickWithBubble("stopOtherFilterChip", "filters");
-assert(stopOtherCheckbox.checked === false, "Clicking the active other-text stop-sign chip again must disable it");
-assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Disabled other-text stop-sign chip must synchronize its ARIA and visual states");
-assert(allFilterChip.getAttribute("aria-pressed") === "true" && allFilterChip.classList.contains("active"), "All must reactivate after the final matcher-backed chip is switched off");
-
-stopOtherCheckbox.checked = true;
-fire("matcherStopOther", "change");
-stopOnlyCheckbox.checked = true;
-fire("matcherStopOnly", "change");
-assert(stopOnlyCheckbox.checked === true && stopOtherCheckbox.checked === false, "Changing the STOP-only checkbox directly must disable the other-text checkbox");
-assert(mainStopOnlyChip.classList.contains("active") && !mainStopOtherChip.classList.contains("active"), "Direct checkbox changes must synchronize both stop-sign chips");
-fire("matcherReset", "click");
-assert(stopOnlyCheckbox.checked === false, "Matcher reset must disable the checkbox activated by the main STOP-only filter chip");
-assert(stopOtherCheckbox.checked === false, "Matcher reset must disable the other-text stop-sign checkbox");
-assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Matcher reset must also deactivate the main STOP-only filter chip");
-assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Matcher reset must also deactivate the main other-text filter chip");
-
-clickWithBubble("whiteEdgeFilterChip", "filters");
-assert(nodesById.get("matcherEdgeColor").value === "white", "Clicking the white-edge chip must select matcherEdgeColor=white");
-assert(mainWhiteEdgeChip.getAttribute("aria-pressed") === "true" && mainWhiteEdgeChip.classList.contains("active"), "White-edge chip must synchronize its ARIA and visual states");
-assert(countryShape("USA").classList.contains("is-matcher-match"), "The USA must exactly match its sourced white edge lines");
-assert(countryShape("ZAF").classList.contains("is-matcher-excluded"), "South Africa's sourced yellow edge lines must be excluded by the white-edge filter");
-assert(countryShape("BWA").classList.contains("is-matcher-excluded"), "Botswana's sourced yellow edge lines must be excluded by the white-edge filter");
-assert(countryShape("ATA").classList.contains("is-matcher-possible"), "Unknown road-line data must remain possible for the white-edge filter");
-clickWithBubble("whiteEdgeFilterChip", "filters");
-assert(nodesById.get("matcherEdgeColor").value === "", "Clicking the active white-edge chip again must clear matcherEdgeColor");
-assert(mainWhiteEdgeChip.getAttribute("aria-pressed") === "false" && !mainWhiteEdgeChip.classList.contains("active"), "Cleared white-edge chip must synchronize its ARIA and visual states");
-setMatcherValue("matcherEdgeColor", "white");
-assert(mainWhiteEdgeChip.classList.contains("active") && mainWhiteEdgeChip.getAttribute("aria-pressed") === "true", "Selecting white edges in the matcher must activate the main chip");
-setMatcherValue("matcherEdgeColor", "yellow");
-assert(!mainWhiteEdgeChip.classList.contains("active") && mainWhiteEdgeChip.getAttribute("aria-pressed") === "false", "Changing the matcher away from white edges must deactivate the main chip");
-fire("matcherReset", "click");
-
-clickWithBubble("whitePlateFilterChip", "filters");
-assert(nodesById.get("matcherPlateColor").value === "white", "Clicking the white-plate chip must select matcherPlateColor=white");
-assert(mainWhitePlateChip.getAttribute("aria-pressed") === "true" && mainWhitePlateChip.classList.contains("active"), "White-plate chip must synchronize its ARIA and visual states");
-assert(countryShape("DEU").classList.contains("is-matcher-match"), "Germany must exactly match its documented white plates");
-assert(countryShape("NLD").classList.contains("is-matcher-excluded"), "The Netherlands' documented yellow plates must be excluded by the white-plate filter");
-assert(countryShape("LUX").classList.contains("is-matcher-excluded"), "Luxembourg's documented yellow plates must be excluded by the white-plate filter");
-assert(countryShape("MYS").classList.contains("is-matcher-excluded"), "Malaysia's white characters on dark plates must not be mistaken for a white plate background");
-assert(countryShape("USA").classList.contains("is-matcher-possible"), "Variable US plate data must remain possible for the white-plate filter");
-assert(countryShape("ATA").classList.contains("is-matcher-possible"), "Unknown plate data must remain possible for the white-plate filter");
-clickWithBubble("whitePlateFilterChip", "filters");
-assert(nodesById.get("matcherPlateColor").value === "", "Clicking the active white-plate chip again must clear matcherPlateColor");
-assert(mainWhitePlateChip.getAttribute("aria-pressed") === "false" && !mainWhitePlateChip.classList.contains("active"), "Cleared white-plate chip must synchronize its ARIA and visual states");
-setMatcherValue("matcherPlateColor", "white");
-assert(mainWhitePlateChip.classList.contains("active") && mainWhitePlateChip.getAttribute("aria-pressed") === "true", "Selecting white plates in the matcher must activate the main chip");
-setMatcherValue("matcherPlateColor", "yellow");
-assert(!mainWhitePlateChip.classList.contains("active") && mainWhitePlateChip.getAttribute("aria-pressed") === "false", "Changing the matcher away from white plates must deactivate the main chip");
-fire("matcherReset", "click");
-
-clickWithBubble("stopOtherFilterChip", "filters");
-clickWithBubble("whiteEdgeFilterChip", "filters");
-clickWithBubble("whitePlateFilterChip", "filters");
-assert(stopOtherCheckbox.checked && nodesById.get("matcherEdgeColor").value === "white" && nodesById.get("matcherPlateColor").value === "white", "Three matcher-backed main chips must be combinable");
-clickWithBubble("allFilterChip", "filters");
-assert(!stopOnlyCheckbox.checked && !stopOtherCheckbox.checked, "All must clear both stop-sign matcher checkboxes");
-assert(nodesById.get("matcherEdgeColor").value === "" && nodesById.get("matcherPlateColor").value === "", "All must clear matcher values set by the white clue chips");
-for (const chip of [mainStopOnlyChip, mainStopOtherChip, mainWhiteEdgeChip, mainWhitePlateChip]) {
-  assert(!chip.classList.contains("active") && chip.getAttribute("aria-pressed") === "false", "All must deactivate every matcher-backed main chip");
-}
-assert(allFilterChip.classList.contains("active") && allFilterChip.getAttribute("aria-pressed") === "true", "All must synchronize its active and ARIA states after clearing matcher chips");
-for (const layer of [paths, borders, overlays]) {
-  assert(!layer.querySelectorAll(".is-matcher-match").length && !layer.querySelectorAll(".is-matcher-possible").length && !layer.querySelectorAll(".is-matcher-excluded").length, "All must clear every matcher result class");
-}
-
-// Quick filters and matcher clues must produce one shared intersection in the
-// map, result cards, and numerical matcher summary.
-clickWithBubble("whitePlateFilterChip", "filters");
-clickWithBubble("leftTrafficFilterChip", "filters");
-const mixedFilterCandidates = nodesById.get("matcherCandidates").innerHTML;
-assert(/data-iso=["']GBR["']/.test(mixedFilterCandidates), "Left-hand traffic plus white plates must retain Great Britain in the candidate list");
-assert(!/data-iso=["']DEU["']/.test(mixedFilterCandidates), "A right-driving white-plate country must not remain in the mixed-filter candidate list");
-assert(!countryMapNode("GBR").classList.contains("is-dimmed"), "Great Britain must remain visible on the map for the mixed filter intersection");
-assert(countryMapNode("DEU").classList.contains("is-dimmed"), "Germany must be dimmed on the map by the left-traffic quick filter");
-
-const mixedCandidateIso3 = [...mixedFilterCandidates.matchAll(/<article\b[^>]*data-iso=["']([A-Z]{3})["']/g)].map((match) => match[1]);
-assert(mixedCandidateIso3.length > 0, "Mixed quick and matcher filters must render at least one candidate card");
-mixedCandidateIso3.forEach((iso3) => {
-  const node = countryMapNode(iso3);
-  assert(node && node.classList.contains("is-match") && !node.classList.contains("is-dimmed") && !node.classList.contains("is-matcher-excluded"), `${iso3} candidate card must belong to the same visible map intersection`);
-});
-
-const mixedMapNodes = allCountryMapNodes().filter((node) => node.classList.contains("is-match"));
-const mixedMapCounts = {
-  match: mixedMapNodes.filter((node) => node.classList.contains("is-matcher-match")).length,
-  possible: mixedMapNodes.filter((node) => node.classList.contains("is-matcher-possible")).length,
-  excluded: mixedMapNodes.filter((node) => node.classList.contains("is-matcher-excluded")).length,
-};
-const mixedSummaryText = nodesById.get("matcherSummary").textContent;
-const mixedSummaryCounts = mixedSummaryText.match(/^(\d+) (?:passt|passen) gut · (\d+) noch möglich · (\d+) eher ausgeschlossen/);
-assert(mixedSummaryCounts, "Mixed-filter matcher summary must expose exact match, possible, and excluded counts");
-assert(Number(mixedSummaryCounts[1]) === mixedMapCounts.match, "Matcher summary exact matches must use the quick-filter map intersection");
-assert(Number(mixedSummaryCounts[2]) === mixedMapCounts.possible, "Matcher summary possible matches must use the quick-filter map intersection");
-assert(Number(mixedSummaryCounts[3]) === mixedMapCounts.excluded, "Matcher summary exclusions must use the quick-filter map intersection");
-clickWithBubble("allFilterChip", "filters");
-
-// A manual exclusion is itself an active restriction even when no matcher
-// criteria or quick filters are selected.
-const manualOnlyExclude = new TestNode("button");
-manualOnlyExclude.dataset.matcherExclude = "ZAF";
-fire("matcherCandidates", "click", { target: manualOnlyExclude });
-const manualOnlySearchSummary = nodesById.get("searchSummary").textContent;
-assert(countryMapNode("ZAF").classList.contains("is-matcher-excluded"), "A manual-only exclusion must reach the map");
-assert(!/^Alle\b.*werden angezeigt/i.test(manualOnlySearchSummary), "Search summary must not claim that all countries are displayed during a manual-only exclusion");
-assert(/1 manuell ausgeschlossenes Land/i.test(manualOnlySearchSummary), "Search summary must name the single manual-only exclusion");
-assert(manualOnlySearchSummary.includes(`${allCountryMapNodes().length - 1} Treffer`), "Search summary hit count must omit the manually excluded country");
-assert(!allFilterChip.classList.contains("active") && allFilterChip.getAttribute("aria-pressed") === "false", "A manual-only exclusion must deactivate All");
-
-const manualOnlyRestore = new TestNode("button");
-manualOnlyRestore.dataset.matcherRestore = "ZAF";
-fire("matcherExcludedSummary", "click", { target: manualOnlyRestore });
-assert(!countryMapNode("ZAF").classList.contains("is-matcher-excluded"), "Restoring a manual-only exclusion must return the country to the map");
-assert(/^Alle\b.*werden angezeigt/i.test(nodesById.get("searchSummary").textContent), "Restoring the sole manual exclusion must restore the neutral search summary");
-
-if (matcher.hidden && !matcher.classList.contains("open")) fire("matcherButton", "click");
-assert(!matcher.hidden || matcher.classList.contains("open"), "Matcher button must reveal the road-screenshot matcher");
-await settleAsync();
-assert(nodesById.get("aiHelperStatus").dataset.state === "connected", "Opening the matcher must detect the mocked local helper");
-assert(nodesById.get("analyzeScreenshotButton").disabled, "AI analysis must stay disabled without a screenshot");
-
-const screenshotInput = nodesById.get("roadScreenshot");
-screenshotInput.files = [{
-  name: "street-reference.png",
-  type: "image/png",
-  size: 4096,
-  dataUrl: "data:image/png;base64,VEVTVF9TQ1JFRU5TSE9U",
-}];
-const analyzeRequestsBeforeSelection = helperRequests.filter((request) => request.url.endsWith("/analyze")).length;
-fire("roadScreenshot", "change");
-await settleAsync();
-const screenshotObjectUrl = nodesById.get("matcherPreviewImage").src;
-assert(screenshotObjectUrl.startsWith("blob:local-test/"), "Screenshot preview must use a local object URL");
-assert(!nodesById.get("matcherPreview").hidden, "Choosing a screenshot must reveal the local preview");
-assert(!nodesById.get("analyzeScreenshotButton").disabled, "A valid screenshot must enable optional AI analysis");
-assert(helperRequests.filter((request) => request.url.endsWith("/analyze")).length === analyzeRequestsBeforeSelection, "Selecting a screenshot must not send it before the deliberate AI click");
-
-// The mocked helper deliberately mixes exact-threshold, low-confidence,
-// unknown, and contradictory STOP observations. This verifies that browser
-// application remains conservative even if the model response is imperfect.
-setMatcherValue("matcherEdgeColor", "white");
-setMatcherValue("matcherPlateColor", "white");
-nextAnalysisPayload = {
-  ok: true,
-  model: "smoke-test-vision",
-  summary: "Rechtsverkehr mit gelber Mittellinie und sichtbarem STOP-Schild.",
-  observations: {
-    traffic: { value: "right", confidence: 0.60, evidence: "Fahrzeuge stehen rechts." },
-    centerColor: { value: "yellow", confidence: 0.91, evidence: "Gelbe Mittellinie sichtbar." },
-    edgeColor: { value: "yellow", confidence: 0.59, evidence: "Randlinie ist unscharf." },
-    plateColor: { value: "unknown", confidence: 0.99, evidence: "Kennzeichen nicht lesbar." },
-    stopOnly: { value: true, confidence: 0.94, evidence: "Nur STOP ist erkennbar." },
-    stopOther: { value: true, confidence: 0.72, evidence: "Unsicherer zweiter Text." },
-    inventedClue: { value: "anything", confidence: 1, evidence: "Unbekannter Schlüssel." },
-  },
-  warnings: [],
-};
-fire("analyzeScreenshotButton", "click");
-await settleAsync(10);
-const analysisRequests = helperRequests.filter((request) => request.url.endsWith("/analyze"));
-assert(analysisRequests.length === analyzeRequestsBeforeSelection + 1, "AI analysis must send exactly one request after the deliberate click");
-const analysisRequest = analysisRequests.at(-1);
-assert(analysisRequest.url === "http://127.0.0.1:43117/analyze", "AI screenshot must only be sent to the fixed loopback helper endpoint");
-assert(analysisRequest.options.method === "POST", "AI helper analysis must use POST");
-assert(analysisRequest.options.headers["X-GeoGuessr-Helper"] === "1", "AI helper analysis must send the required helper-identification header");
-assert(!/authorization|bearer|groq.?key|api.?key/i.test(JSON.stringify(analysisRequest.options.headers)), "Browser request headers must never contain a Groq credential");
-const analysisBody = JSON.parse(analysisRequest.options.body);
-assert(JSON.stringify(Object.keys(analysisBody).sort()) === JSON.stringify(["fileName", "imageDataUrl"]), "AI helper request body must contain only imageDataUrl and fileName");
-assert(analysisBody.fileName === "street-reference.png" && analysisBody.imageDataUrl.startsWith("data:image/png;base64,"), "AI helper request must carry the selected image and safe file name");
-assert(nodesById.get("matcherTraffic").value === "right", "An AI observation at exactly 0.60 confidence must be applied");
-assert(nodesById.get("matcherCenterColor").value === "yellow", "A supported high-confidence AI observation must be applied");
-assert(nodesById.get("matcherEdgeColor").value === "white", "An AI observation below 0.60 must not overwrite an existing manual value");
-assert(nodesById.get("matcherPlateColor").value === "white", "An unknown AI value must not overwrite an existing manual value");
-assert(nodesById.get("matcherStopOnly").checked && !nodesById.get("matcherStopOther").checked, "Contradictory AI STOP observations must remain mutually exclusive and retain only the stronger variant");
-assert(nodesById.get("aiAnalysisResult").dataset.state === "success" && !nodesById.get("aiAnalysisResult").hidden, "Successful AI analysis must expose an accessible result");
-assert(/Automatisch übernommen|Bitte selbst prüfen/i.test(nodeText(nodesById.get("aiAnalysisResult"))), "AI result must distinguish applied observations from values requiring review");
-assert(/nicht unterstützte Angabe/i.test(nodeText(nodesById.get("aiAnalysisResult"))), "Unknown AI observation keys must be reported as safely ignored");
-fire("removeScreenshot", "click");
-assert(nodesById.get("matcherPreview").hidden, "Removing a screenshot must hide its preview");
-assert(revokedObjectUrls.includes(screenshotObjectUrl), "Removing a screenshot must revoke its object URL");
-assert(nodesById.get("aiAnalysisResult").hidden, "Removing a screenshot must clear the visible AI result");
-fire("matcherReset", "click");
-assert(nodesById.get("matcherTraffic").value === "" && nodesById.get("matcherCenterColor").value === "", "Matcher reset must clear AI-applied observations");
-assert(!nodesById.get("matcherStopOnly").checked && !nodesById.get("matcherStopOther").checked, "Matcher reset must clear AI-applied STOP observations");
-
-// Offline AI must fail softly without changing or disabling manual matching.
-helperOnline = false;
-screenshotInput.files = [{ name: "offline-test.webp", type: "image/webp", size: 2048 }];
-fire("roadScreenshot", "change");
-await settleAsync();
-setMatcherValue("matcherPole", "wood");
-fire("analyzeScreenshotButton", "click");
-await settleAsync(10);
-assert(nodesById.get("aiHelperStatus").dataset.state === "offline", "An unreachable local helper must produce an explicit offline state");
-assert(nodesById.get("aiAnalysisResult").dataset.state === "error" && /nicht erreichbar/i.test(nodeText(nodesById.get("aiAnalysisResult"))), "Offline analysis must show a useful local-helper error");
-assert(nodesById.get("matcherPole").value === "wood", "Offline AI must preserve manual matcher selections");
-assert(hasMatcherResultClass(countryShape("GBR")) || hasMatcherResultClass(countryShape("USA")) || nodesById.get("matcherCandidates").innerHTML, "Manual matcher must continue producing results while AI is offline");
-helperOnline = true;
-fire("matcherReset", "click");
-assert(nodesById.get("aiAnalysisResult").hidden && nodesById.get("matcherPole").value === "", "Matcher reset must clear an AI error and all manual criteria");
-assert(nodesById.get("analyzeScreenshotButton").disabled, "Matcher reset must disable AI analysis after clearing the screenshot");
-
-setMatcherValue("matcherCenterColor", "yellow");
-setMatcherValue("matcherCenterStyle", "dashed");
-setMatcherValue("matcherEdgeColor", "white");
-setMatcherValue("matcherEdgeStyle", "solid");
-const yellowDashedCandidates = nodesById.get("matcherCandidates").innerHTML;
-for (const iso3 of ["USA", "MEX", "BRA"]) {
-  const shape = countryShape(iso3);
-  assert(shape && !shape.classList.contains("is-matcher-excluded"), `${iso3} must not be excluded by yellow dashed centers with white solid edges`);
-  assert(hasMatcherResultClass(shape), `${iso3} must remain a matching or possible candidate for the selected road pattern`);
-  assert(yellowDashedCandidates.includes(iso3), `${iso3} must appear in the matcher candidate list`);
-}
-assert(/Treffer|möglich|Mögliche Länder/i.test(nodesById.get("matcherSummary").textContent + nodesById.get("matcherSummary").innerHTML), "Matcher summary must report candidate results");
-assert(overlays.children.length <= 32, `Matcher must keep the world map readable; found ${overlays.children.length} road samples`);
-
-// Traffic-side isolation is a separate screenshot observation. Clear the line
-// pattern first so valid left-driving alternatives are not rejected for having
-// their own country-specific markings.
-fire("matcherReset", "click");
-setMatcherValue("matcherTraffic", "left");
-assert(countryShape("USA").classList.contains("is-matcher-excluded"), "Left-hand traffic must exclude the USA");
-assert(/USA/.test(nodesById.get("matcherExcludedSummary").innerHTML), "Automatically excluded countries must be visible by name in the exclusion group");
-for (const iso3 of ["ZAF", "AUS"]) {
-  const shape = countryShape(iso3);
-  assert(hasMatcherResultClass(shape), `${iso3} must remain possible or matching with left-hand traffic`);
-  assert(!shape.classList.contains("is-matcher-excluded"), `${iso3} must not be excluded by left-hand traffic`);
-}
-const southAfricaBorder = borders.children.find((node) => node.dataset.iso === "ZAF");
-assert(hasMatcherResultClass(southAfricaBorder), "Matcher result classes must also reach country borders");
-const southAfricaMatcherRoad = overlays.children.find((node) => node.dataset.iso === "ZAF");
-assert(southAfricaMatcherRoad && hasMatcherResultClass(southAfricaMatcherRoad), "Matcher result classes must also reach visible road samples");
-
-const excludeSouthAfrica = new TestNode("button");
-excludeSouthAfrica.dataset.matcherExclude = "ZAF";
-fire("matcherCandidates", "click", { target: excludeSouthAfrica });
-assert(countryShape("ZAF").classList.contains("is-matcher-excluded"), "Manual exclusion must override a matching country");
-assert(!hasMatcherResultClass(countryShape("ZAF")), "A manually excluded country must not retain a matcher result class");
-assert(/ZAF|Südafrika/.test(nodesById.get("matcherExcludedSummary").textContent + nodesById.get("matcherExcludedSummary").innerHTML), "Manual exclusions must be visible in the exclusion summary");
-
-const restoreSouthAfrica = new TestNode("button");
-restoreSouthAfrica.dataset.matcherRestore = "ZAF";
-fire("matcherExcludedSummary", "click", { target: restoreSouthAfrica });
-assert(!countryShape("ZAF").classList.contains("is-matcher-excluded"), "Restoring a country must remove the manual exclusion");
-assert(hasMatcherResultClass(countryShape("ZAF")), "A restored country must return to its calculated matcher group");
-
-fire("matcherCandidates", "click", { target: excludeSouthAfrica });
-assert(countryShape("ZAF").classList.contains("is-matcher-excluded"), "A restored country must remain manually excludable");
-
-const selectedBeforeMatcherReset = nodesById.get("worldMap").classList.contains("has-selection");
-fire("matcherReset", "click");
-for (const id of matcherSelectIds) {
-  assert(nodesById.get(id).value === "", `Matcher reset must clear ${id}`);
-}
-assert(!stopOnlyCheckbox.checked && !stopOtherCheckbox.checked, "Matcher reset must clear both stop-sign checkboxes");
-for (const chip of [mainStopOnlyChip, mainStopOtherChip, mainWhiteEdgeChip, mainWhitePlateChip]) {
-  assert(!chip.classList.contains("active") && chip.getAttribute("aria-pressed") === "false", "Matcher reset must deactivate all matcher-backed main chips");
-}
-assert(allFilterChip.classList.contains("active") && allFilterChip.getAttribute("aria-pressed") === "true", "Matcher reset must reactivate All when no other filters remain");
-for (const layer of [paths, borders, overlays]) {
-  assert(!layer.querySelectorAll(".is-matcher-match").length, "Matcher reset must remove exact-match classes");
-  assert(!layer.querySelectorAll(".is-matcher-possible").length, "Matcher reset must remove possible-match classes");
-  assert(!layer.querySelectorAll(".is-matcher-excluded").length, "Matcher reset must remove exclusion classes");
-}
-assert(nodesById.get("matcherPreview").hidden, "Matcher reset must clear the screenshot preview");
-assert(nodesById.get("worldMap").classList.contains("has-selection") === selectedBeforeMatcherReset, "Matcher reset must preserve the current country selection");
-assert(/Noch keine Länder ausgeschlossen/i.test(nodesById.get("matcherExcludedSummary").textContent + nodesById.get("matcherExcludedSummary").innerHTML), "Matcher reset must clear manual exclusions");
-
-setMatcherValue("matcherTraffic", "left");
-setMatcherValue("matcherCenterColor", "white");
-setMatcherValue("matcherCenterStyle", "dashed");
-setMatcherValue("matcherEdgeColor", "yellow");
-setMatcherValue("matcherEdgeStyle", "solid");
-assert(hasMatcherResultClass(countryShape("ZAF")), "South Africa's left-driving white-center/yellow-edge pattern must remain a matcher result");
-assert(!countryShape("ZAF").classList.contains("is-matcher-excluded"), "South Africa must not be excluded by its documented road pattern");
-fire("matcherReset", "click");
-
-setMatcherValue("matcherCenterColor", "green");
-setMatcherValue("matcherPlateColor", "yellow");
-assert(hasMatcherResultClass(countryShape("NLD")), "A green center band plus yellow plates must keep the Netherlands as a candidate");
-assert(!countryShape("NLD").classList.contains("is-matcher-excluded"), "Dutch screenshot clues must not exclude the Netherlands");
-assert(nodesById.get("matcherRoadPreview").querySelector(".matcher-preview-band").style.display === "", "The green-band option must reveal a green center band in the live preview");
-assert(nodesById.get("matcherRoadPreview").querySelector(".matcher-preview-center").getAttribute("stroke-dasharray") === "", "The Dutch green-band preview must default to solid white boundary lines");
-fire("matcherReset", "click");
-assert(!hasMatcherResultClass(countryShape("NLD")) && !countryShape("NLD").classList.contains("is-matcher-excluded"), "The final matcher reset must clear the Netherlands test state");
-
-stopOnlyCheckbox.checked = true;
-fire("matcherStopOnly", "change");
-assert(stopOtherCheckbox.checked === false, "Direct STOP-only checkbox activation must keep other-text stop signs disabled");
-assert(mainStopOnlyChip.getAttribute("aria-pressed") === "true" && mainStopOnlyChip.classList.contains("active"), "Changing the matcher checkbox must activate the visible STOP-only filter chip");
-assert(hasMatcherResultClass(countryShape("USA")), "A country with STOP-only signs must remain a matcher candidate");
-assert(!countryShape("USA").classList.contains("is-matcher-excluded"), "The STOP-only clue must not exclude the USA");
-assert(countryShape("JPN").classList.contains("is-matcher-excluded"), "STOP-only signs must exclude Japan's Japanese stop-sign text");
-assert(countryShape("MEX").classList.contains("is-matcher-excluded"), "STOP-only signs must exclude Mexico's ALTO stop-sign text");
-assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), "Countries without stop-sign text data must remain possible instead of being hard-excluded");
-fire("matcherReset", "click");
-assert(stopOnlyCheckbox.checked === false, "Matcher reset must disable the STOP-only checkbox");
-assert(stopOtherCheckbox.checked === false, "Matcher reset must keep the other-text stop-sign checkbox disabled");
-assert(mainStopOnlyChip.getAttribute("aria-pressed") === "false" && !mainStopOnlyChip.classList.contains("active"), "Matcher reset must keep the main STOP-only filter chip synchronized");
-assert(mainStopOtherChip.getAttribute("aria-pressed") === "false" && !mainStopOtherChip.classList.contains("active"), "Matcher reset must keep the other-text stop-sign chip synchronized");
-
-setMatcherValue("matcherStopText", "pare");
-assert(hasMatcherResultClass(countryShape("BRA")) && !countryShape("BRA").classList.contains("is-matcher-excluded"), "PARE must retain Brazil as a sourced stop-sign candidate");
-assert(countryShape("MEX").classList.contains("is-matcher-excluded"), "PARE must exclude Mexico's sourced ALTO sign");
-assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), "Unknown stop-sign data must stay possible for a PARE observation");
-assert(/BRA/.test(nodesById.get("matcherCandidates").innerHTML) && /belastbar/.test(nodesById.get("matcherCandidates").innerHTML), "PARE results must show Brazil with an evidence-quality badge");
-fire("matcherReset", "click");
-
-setMatcherValue("matcherWarningSign", "diamond-yellow");
-assert(hasMatcherResultClass(countryShape("USA")) && !countryShape("USA").classList.contains("is-matcher-excluded"), "A yellow warning diamond must retain the sourced USA profile");
-assert(countryShape("GBR").classList.contains("is-matcher-excluded"), "A yellow warning diamond must exclude Great Britain's sourced white-triangle standard");
-assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), "Missing warning-sign data must remain possible");
-assert(/amtlich belegt/.test(nodesById.get("matcherCandidates").innerHTML) && /Quelle/.test(nodesById.get("matcherCandidates").innerHTML), "Verified visual matches must show evidence and source indicators");
-fire("matcherReset", "click");
-
-setMatcherValue("matcherWarningSign", "triangle-yellow");
-assert(hasMatcherResultClass(countryShape("SWE")) && !countryShape("SWE").classList.contains("is-matcher-excluded"), "A yellow warning triangle must retain Sweden");
-assert(countryShape("USA").classList.contains("is-matcher-excluded"), "A yellow warning triangle must exclude the USA's sourced yellow-diamond standard");
-fire("matcherReset", "click");
-
-setMatcherValue("matcherPlateLayout", "white-yellow");
-assert(hasMatcherResultClass(countryShape("GBR")) && !countryShape("GBR").classList.contains("is-matcher-excluded"), "White-front/yellow-rear plates must retain Great Britain");
-assert(countryShape("NLD").classList.contains("is-matcher-excluded"), "White-front/yellow-rear plates must exclude the Netherlands' sourced yellow/yellow layout");
-assert(hasMatcherResultClass(countryShape("BWA")) && !countryShape("BWA").classList.contains("is-matcher-excluded"), "Botswana's medium-confidence white/yellow layout must stay possible");
-fire("matcherReset", "click");
-
-for (const [control, value, expectedIso] of [
-  ["matcherBollard", "white-black", "DEU"],
-  ["matcherPole", "concrete", "JPN"],
-  ["matcherShoulder", "drainage", "JPN"],
-  ["matcherSignBack", "dark", "BRA"],
-  ["matcherCamera", "low", "JPN"],
-]) {
-  setMatcherValue(control, value);
-  assert(hasMatcherResultClass(countryShape(expectedIso)) && !countryShape(expectedIso).classList.contains("is-matcher-excluded"), `${control} must retain its documented example country`);
-  assert(!countryShape("ATA").classList.contains("is-matcher-excluded"), `${control} must not hard-exclude a country with unknown data`);
-  assert(!countryShape("USA").classList.contains("is-matcher-excluded") || expectedIso === "USA", `${control} must remain a soft clue instead of hard-excluding the USA`);
-  fire("matcherReset", "click");
-}
-
-setMatcherValue("matcherSurface", "unpaved");
-assert(hasMatcherResultClass(countryShape("BOL")), "An unpaved-road clue must retain Bolivia through its documented surface profile");
-fire("matcherReset", "click");
-setMatcherValue("matcherEdgeColor", "none");
-setMatcherValue("matcherEdgeStyle", "none");
-setMatcherValue("matcherSurface", "concrete");
-assert(hasMatcherResultClass(countryShape("PHL")), "A concrete-road clue must retain the Philippines through its documented road variant");
-fire("matcherReset", "click");
-
-setMatcherValue("matcherPlateColor", "dark");
-assert(hasMatcherResultClass(countryShape("MYS")), "Dark license plates must retain Malaysia as a candidate");
-assert(countryShape("LUX").classList.contains("is-matcher-excluded"), "Black lettering on yellow plates must not classify Luxembourg as having dark plate backgrounds");
-fire("matcherReset", "click");
-
-console.log(JSON.stringify({
-  status: "OK",
-  countryPaths: paths.children.length,
-  clipPaths: clips.children.length,
-  topBorders: borders.children.length,
-  worldRoadSamples: worldCount,
-  regionalRoadSamples: regionalCount,
-  countryRoadSamples: countryCount,
-  floatingRoadBadges: 0,
-  maxWorldSurfaceWidth: Math.max(...surfaceWidths),
-  selectedSmallCountrySample: true,
-  neutralInitialCountryPanel: true,
-  countryPanelSelectionRouting: true,
-  pointerCapturedCountrySelection: true,
-  matcherLocalScreenshotPreview: true,
-  optionalAiHealthCheck: true,
-  optionalAiClickOnlyUpload: true,
-  optionalAiLoopbackContract: true,
-  optionalAiConfidenceThreshold: 0.60,
-  optionalAiUnknownValuesIgnored: true,
-  optionalAiStopMutualExclusion: true,
-  optionalAiOfflineFallback: true,
-  optionalAiResetBehavior: true,
-  matcherRoadCandidates: true,
-  matcherManualExclusion: true,
-  matcherManualRestore: true,
-  matcherAutomaticExclusionList: true,
-  matcherNeutralPreview: true,
-  matcherUnmarkedRoadVariants: true,
-  matcherSurfaceProfiles: true,
-  matcherSouthAfricaPattern: true,
-  matcherPlateBackgrounds: true,
-  matcherStopSignText: true,
-  matcherStopMainFilterSync: true,
-  matcherOtherStopTextFilter: true,
-  matcherWhiteEdgeMainFilter: true,
-  matcherWhitePlateMainFilter: true,
-  matcherMainFilterAllReset: true,
-  matcherQuickFilterIntersection: true,
-  manualOnlyExclusionSummary: true,
-  matcherExpandedVisualFilters: true,
-  matcherEvidenceConservativeExclusion: true,
-  countryPanelEvidenceSources: true,
-  selectedCountryLocalFlags: true,
-  philippineConcreteSlabs: true,
-  versionedDismissibleUpdateNotice: true,
-  matcherResetPreservesSelection: true,
-}, null, 2));
 }
 
 main().catch((error) => {

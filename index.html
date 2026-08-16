@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="dark">
-    <meta name="description" content="Lokaler interaktiver GeoGuessr-Länderatlas mit Straßenhinweisen und Direktvergleich.">
+    <meta name="description" content="Lokaler interaktiver GeoGuessr-Länderatlas mit großer Weltkarte und visuellen Länderfiltern.">
     <title>GeoGuessr World Reference Atlas</title>
     <link rel="stylesheet" href="style.css">
   </head>
@@ -25,46 +25,91 @@
             <kbd>Strg K</kbd>
           </label>
           <button id="matcherButton" class="secondary-button matcher-toggle" type="button" aria-expanded="false" aria-controls="roadMatcher">Straßen-Screenshot</button>
-          <button id="browserButton" class="secondary-button" type="button" aria-expanded="false" aria-controls="countryBrowser">Länderbrowser</button>
-          <button id="compareButton" class="primary-button" type="button">Vergleichen <span id="compareCount">0</span></button>
         </div>
 
         <div id="searchSummary" class="search-summary" aria-live="polite">Alle Länder werden angezeigt.</div>
 
-        <div id="filters" class="filter-strip" aria-label="Kartenfilter">
-          <button class="filter-chip active" type="button" data-filter="all" aria-pressed="true">Alle</button>
-          <button id="stopOnlyFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-only aria-controls="matcherStopOnly" aria-pressed="false" title="Stoppschild zeigt ausschließlich STOP und keine weitere Sprache"><span class="filter-chip-icon" aria-hidden="true">🛑</span><span>STOP-Schild: nur „STOP“</span></button>
-          <button id="stopOtherFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-other aria-controls="matcherStopOther" aria-pressed="false" title="Stoppschild zeigt einen anderen Text als ausschließlich STOP"><span class="filter-chip-icon" aria-hidden="true">🛑</span><span>Stoppschild: anderer Text als „STOP“</span></button>
-          <button id="whiteEdgeFilterChip" class="filter-chip" type="button" data-matcher-edge-white aria-controls="matcherEdgeColor" aria-pressed="false">Weiße Randlinie</button>
-          <button id="whitePlateFilterChip" class="filter-chip" type="button" data-matcher-plate-white aria-controls="matcherPlateColor" aria-pressed="false">Weiße Kennzeichen</button>
-          <button class="filter-chip" type="button" data-filter="traffic:left" aria-pressed="false">Linksverkehr</button>
-          <button class="filter-chip" type="button" data-filter="traffic:right" aria-pressed="false">Rechtsverkehr</button>
-          <button class="filter-chip" type="button" data-filter="center:gelb" aria-pressed="false">Gelbe Mittellinie</button>
-          <button class="filter-chip" type="button" data-filter="center:weiß" aria-pressed="false">Weiße Mittellinie</button>
-          <button class="filter-chip" type="button" data-filter="edge:gelb" aria-pressed="false">Gelbe Randlinie</button>
-          <button class="filter-chip" type="button" data-filter="plates:gelb" aria-pressed="false">Gelbe Kennzeichen</button>
-          <button class="filter-chip" type="button" data-filter="terrain:trop" aria-pressed="false">Tropisch</button>
-          <button class="filter-chip" type="button" data-filter="terrain:wüste" aria-pressed="false">Wüste</button>
-          <button class="filter-chip" type="button" data-filter="terrain:berg" aria-pressed="false">Gebirgig</button>
-          <button class="filter-chip" type="button" data-filter="continent:Europa" aria-pressed="false">Europa</button>
-          <button class="filter-chip" type="button" data-filter="continent:Afrika" aria-pressed="false">Afrika</button>
-          <button class="filter-chip" type="button" data-filter="continent:Asien" aria-pressed="false">Asien</button>
-          <button class="filter-chip" type="button" data-filter="continent:Nordamerika" aria-pressed="false">Nordamerika</button>
-          <button class="filter-chip" type="button" data-filter="continent:Südamerika" aria-pressed="false">Südamerika</button>
-          <button class="filter-chip" type="button" data-filter="continent:Ozeanien" aria-pressed="false">Ozeanien</button>
-          <button class="filter-chip" type="button" data-filter="favorites:true" aria-pressed="false">★ Favoriten</button>
-        </div>
+        <section id="filterDashboard" class="filter-dashboard" aria-labelledby="filterDashboardTitle">
+          <header class="filter-overview">
+            <div class="filter-overview-copy">
+              <span class="eyebrow">BILDMERKMALE</span>
+              <h2 id="filterDashboardTitle">Was siehst du?</h2>
+              <p>Wähle Hinweise aus dem Street-View-Bild. Kategorien halten auch viele Filter übersichtlich.</p>
+            </div>
+            <div class="filter-overview-status">
+              <strong id="filterResultCount">206 Treffer</strong>
+              <span><b id="activeFilterCount" class="active-filter-count" aria-label="0 aktive Filter">0</b> aktiv</span>
+            </div>
+            <button id="allFilterChip" class="filter-reset-button" type="button" disabled>Filter löschen</button>
+          </header>
+
+          <div id="filterPanel" class="filter-workbench">
+            <nav class="filter-category-tabs" role="tablist" aria-label="Filterkategorien">
+              <button id="filterTabBasis" class="filter-category-tab active" type="button" role="tab" aria-selected="true" aria-controls="filterPanelBasis" data-filter-tab="basis"><span class="filter-category-icon" aria-hidden="true">◎</span><span><strong>Basis</strong><small>Verkehr & Region</small></span><b data-tab-count>0</b></button>
+              <button id="filterTabRoad" class="filter-category-tab" type="button" role="tab" aria-selected="false" aria-controls="filterPanelRoad" data-filter-tab="road"><span class="filter-category-icon" aria-hidden="true">Ⅱ</span><span><strong>Straße</strong><small>Linien & Schilder</small></span><b data-tab-count>0</b></button>
+              <button id="filterTabScene" class="filter-category-tab" type="button" role="tab" aria-selected="false" aria-controls="filterPanelScene" data-filter-tab="scene"><span class="filter-category-icon" aria-hidden="true">⌁</span><span><strong>Umgebung</strong><small>Landschaft & Sprache</small></span><b data-tab-count>0</b></button>
+              <button id="filterTabObjects" class="filter-category-tab" type="button" role="tab" aria-selected="false" aria-controls="filterPanelObjects" data-filter-tab="objects"><span class="filter-category-icon" aria-hidden="true">◇</span><span><strong>Objekte</strong><small>Pfosten & Masten</small></span><b data-tab-count>0</b></button>
+              <button id="filterTabCamera" class="filter-category-tab" type="button" role="tab" aria-selected="false" aria-controls="filterPanelCamera" data-filter-tab="camera"><span class="filter-category-icon" aria-hidden="true">▣</span><span><strong>Kamera</strong><small>Google-Car-Meta</small></span><b data-tab-count>0</b></button>
+            </nav>
+
+            <div id="filters" class="filter-category-panels">
+              <section id="filterPanelBasis" class="filter-category-panel active" role="tabpanel" aria-labelledby="filterTabBasis" data-filter-panel="basis">
+                <div class="filter-panel-heading"><div><span class="eyebrow">SCHRITT 1</span><h3>Grobe Richtung eingrenzen</h3></div><p>Innerhalb einer Gruppe ersetzt ein Klick die vorherige Auswahl.</p></div>
+                <div class="filter-group-grid">
+                  <section class="filter-group" role="group" aria-labelledby="trafficFilterGroupTitle"><div class="filter-group-heading"><h4 id="trafficFilterGroupTitle">Verkehrsseite</h4><span>eine Option</span></div><div class="filter-chip-list"><button id="leftTrafficFilterChip" class="filter-chip" type="button" data-filter="traffic:left" aria-pressed="false">Linksverkehr</button><button id="rightTrafficFilterChip" class="filter-chip" type="button" data-filter="traffic:right" aria-pressed="false">Rechtsverkehr</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="regionFilterGroupTitle"><div class="filter-group-heading"><h4 id="regionFilterGroupTitle">Weltregion</h4><span>eine Option</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-filter="continent:Europa" aria-pressed="false">Europa</button><button class="filter-chip" type="button" data-filter="continent:Afrika" aria-pressed="false">Afrika</button><button class="filter-chip" type="button" data-filter="continent:Asien" aria-pressed="false">Asien</button><button class="filter-chip" type="button" data-filter="continent:Nordamerika" aria-pressed="false">Nordamerika</button><button class="filter-chip" type="button" data-filter="continent:Südamerika" aria-pressed="false">Südamerika</button><button class="filter-chip" type="button" data-filter="continent:Ozeanien" aria-pressed="false">Ozeanien</button><button class="filter-chip favorite-filter-chip" type="button" data-filter="favorites:true" aria-pressed="false">★ Nur Favoriten</button></div></section>
+                </div>
+              </section>
+
+              <section id="filterPanelRoad" class="filter-category-panel" role="tabpanel" aria-labelledby="filterTabRoad" data-filter-panel="road" hidden>
+                <div class="filter-panel-heading"><div><span class="eyebrow">STARKER HINWEIS</span><h3>Fahrbahn und Schilder</h3></div><p>Farben sind je Merkmal exklusiv; verschiedene Merkmale lassen sich kombinieren.</p></div>
+                <div class="filter-group-grid filter-group-grid-three">
+                  <section class="filter-group" role="group" aria-labelledby="roadLineFilterGroupTitle"><div class="filter-group-heading"><h4 id="roadLineFilterGroupTitle">Straßenlinien</h4><span>pro Linie eine Farbe</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-filter="center:gelb" aria-pressed="false">Gelbe Mittellinie</button><button class="filter-chip" type="button" data-filter="center:weiß" aria-pressed="false">Weiße Mittellinie</button><button class="filter-chip" type="button" data-filter="edge:gelb" aria-pressed="false">Gelbe Randlinie</button><button id="whiteEdgeFilterChip" class="filter-chip" type="button" data-matcher-edge-white aria-pressed="false">Weiße Randlinie</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="plateFilterGroupTitle"><div class="filter-group-heading"><h4 id="plateFilterGroupTitle">Kennzeichen</h4><span>Farbe oder Anordnung</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-filter="plates:gelb" aria-pressed="false">Gelbe Kennzeichen</button><button id="whitePlateFilterChip" class="filter-chip" type="button" data-matcher-plate-white aria-pressed="false">Weiße Kennzeichen</button><button class="filter-chip" type="button" data-quick-criterion="plateLayout" data-quick-value="white-yellow" aria-pressed="false">Vorn weiß, hinten gelb</button><button class="filter-chip" type="button" data-quick-criterion="plateLayout" data-quick-value="yellow-yellow" aria-pressed="false">Beide gelb</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="stopFilterGroupTitle"><div class="filter-group-heading"><h4 id="stopFilterGroupTitle">Schilder</h4><span>je Typ eine Option</span></div><div class="filter-chip-list"><button id="stopOnlyFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-only aria-pressed="false" aria-label="Filter: Stoppschild zeigt ausschließlich STOP und keine weitere Sprache"><span>STOP: nur STOP</span></button><button id="stopOtherFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-other aria-pressed="false" aria-label="Filter: Stoppschild zeigt einen anderen oder zusätzlichen Text"><span>STOP: anderer Text</span></button><button class="filter-chip" type="button" data-quick-criterion="warningSign" data-quick-value="diamond-yellow" aria-pressed="false">Gelbes Rautenschild</button><button class="filter-chip" type="button" data-quick-criterion="warningSign" data-quick-value="triangle-white" aria-pressed="false">Weißes Warndreieck</button><button class="filter-chip" type="button" data-quick-criterion="warningSign" data-quick-value="triangle-yellow" aria-pressed="false">Gelbes Warndreieck</button></div></section>
+                </div>
+              </section>
+
+              <section id="filterPanelScene" class="filter-category-panel" role="tabpanel" aria-labelledby="filterTabScene" data-filter-panel="scene" hidden>
+                <div class="filter-panel-heading"><div><span class="eyebrow">GESAMTBILD</span><h3>Landschaft und sichtbare Sprache</h3></div><p>Landschaften sind kombinierbar; Sprachen werden nur in kuratierten Profilen sicher gefiltert.</p></div>
+                <div class="filter-group-grid">
+                  <section class="filter-group" role="group" aria-labelledby="terrainFilterGroupTitle"><div class="filter-group-heading"><h4 id="terrainFilterGroupTitle">Landschaft</h4><span>kombinierbar</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-filter="terrain:trop" aria-pressed="false">Tropisch</button><button class="filter-chip" type="button" data-filter="terrain:wüste" aria-pressed="false">Wüste / sehr trocken</button><button class="filter-chip" type="button" data-filter="terrain:berg" aria-pressed="false">Gebirge</button><button class="filter-chip" type="button" data-filter="terrain:flach" aria-pressed="false">Sehr flach</button><button class="filter-chip" type="button" data-filter="terrain:wald" aria-pressed="false">Waldreich</button><button class="filter-chip" type="button" data-filter="terrain:insel" aria-pressed="false">Inselwelt / Küste</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="languageFilterGroupTitle"><div class="filter-group-heading"><h4 id="languageFilterGroupTitle">Sprache / Schrift</h4><span>eine Option</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-filter="language:Englisch" aria-pressed="false">Englisch</button><button class="filter-chip" type="button" data-filter="language:Spanisch" aria-pressed="false">Spanisch</button><button class="filter-chip" type="button" data-filter="language:Portugiesisch" aria-pressed="false">Portugiesisch</button><button class="filter-chip" type="button" data-filter="language:Französisch" aria-pressed="false">Französisch</button><button class="filter-chip" type="button" data-filter="language:Deutsch" aria-pressed="false">Deutsch</button><button class="filter-chip" type="button" data-filter="language:Niederländisch" aria-pressed="false">Niederländisch</button></div></section>
+                </div>
+              </section>
+
+              <section id="filterPanelObjects" class="filter-category-panel" role="tabpanel" aria-labelledby="filterTabObjects" data-filter-panel="objects" hidden>
+                <div class="filter-panel-heading"><div><span class="eyebrow">META-WISSEN</span><h3>Straßenobjekte und Infrastruktur</h3></div><p>Nicht erfasste Länder bleiben möglich, statt vorschnell ausgeschlossen zu werden.</p></div>
+                <div class="filter-group-grid filter-group-grid-three">
+                  <section class="filter-group" role="group" aria-labelledby="bollardFilterGroupTitle"><div class="filter-group-heading"><h4 id="bollardFilterGroupTitle">Leitpfosten</h4><span>eine Option</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-quick-criterion="bollard" data-quick-value="white-black" aria-pressed="false">Weiß mit schwarzem Feld</button><button class="filter-chip" type="button" data-quick-criterion="bollard" data-quick-value="painted-black-white" aria-pressed="false">Schwarz-weiß bemalt</button><button class="filter-chip" type="button" data-quick-criterion="bollard" data-quick-value="black-yellow" aria-pressed="false">Schwarz-gelb</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="poleFilterGroupTitle"><div class="filter-group-heading"><h4 id="poleFilterGroupTitle">Masten & Schildrückseite</h4><span>kombinierbar</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-quick-criterion="pole" data-quick-value="wood" aria-pressed="false">Holzmasten</button><button class="filter-chip" type="button" data-quick-criterion="pole" data-quick-value="concrete" aria-pressed="false">Betonmasten</button><button class="filter-chip" type="button" data-quick-criterion="signBack" data-quick-value="dark" aria-pressed="false">Dunkle Schildrückseite</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="shoulderFilterGroupTitle"><div class="filter-group-heading"><h4 id="shoulderFilterGroupTitle">Straßenrand</h4><span>eine Option</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-quick-criterion="shoulder" data-quick-value="paved" aria-pressed="false">Befestigte Schulter</button><button class="filter-chip" type="button" data-quick-criterion="shoulder" data-quick-value="gravel" aria-pressed="false">Kies / Sand</button><button class="filter-chip" type="button" data-quick-criterion="shoulder" data-quick-value="none" aria-pressed="false">Keine Schulter</button><button class="filter-chip" type="button" data-quick-criterion="shoulder" data-quick-value="drainage" aria-pressed="false">Offene Betonrinne</button></div></section>
+                </div>
+              </section>
+
+              <section id="filterPanelCamera" class="filter-category-panel" role="tabpanel" aria-labelledby="filterTabCamera" data-filter-panel="camera" hidden>
+                <div class="filter-panel-heading"><div><span class="eyebrow">GOOGLE-CAR-META</span><h3>Kamera und Aufnahmefahrzeug</h3></div><p>Fahrzeugmerkmale sind kombinierbar; eine Aufnahmeart ersetzt die andere.</p></div>
+                <div id="carMetaFilters" class="filter-group-grid">
+                  <section class="filter-group" role="group" aria-labelledby="carFeatureFilterTitle"><div class="filter-group-heading"><h4 id="carFeatureFilterTitle">Sichtbares Fahrzeug</h4><span>kombinierbar</span></div><div class="filter-chip-list"><button id="roofRackFilterChip" class="filter-chip vehicle-meta-chip" type="button" data-capture-feature="roof-rack" aria-pressed="false">Dachträger</button><button id="mirrorFilterChip" class="filter-chip vehicle-meta-chip" type="button" data-capture-feature="mirrors" aria-pressed="false">Seitenspiegel</button><button id="snorkelFilterChip" class="filter-chip vehicle-meta-chip" type="button" data-capture-feature="snorkel" aria-pressed="false">Schnorchel</button><button id="equipmentFilterChip" class="filter-chip vehicle-meta-chip" type="button" data-capture-feature="equipment" aria-pressed="false">Zelt / Gepäck</button><button id="tapeFilterChip" class="filter-chip vehicle-meta-chip" type="button" data-capture-feature="tape" aria-pressed="false">Klebeband</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="captureTypeFilterTitle"><div class="filter-group-heading"><h4 id="captureTypeFilterTitle">Aufnahmeart</h4><span>eine Option</span></div><div class="filter-chip-list"><button id="motorcycleFilterChip" class="filter-chip vehicle-meta-chip capture-mode-chip" type="button" data-capture-type="motorcycle" aria-pressed="false">Motorradkamera</button><button id="trekkerFilterChip" class="filter-chip vehicle-meta-chip capture-mode-chip" type="button" data-capture-type="trekker" aria-pressed="false">Trekker / Fußkamera</button><button id="boatFilterChip" class="filter-chip vehicle-meta-chip capture-mode-chip" type="button" data-capture-type="boat" aria-pressed="false">Bootskamera</button><button class="filter-chip" type="button" data-quick-criterion="camera" data-quick-value="low" aria-pressed="false">Auffällig niedrige Kamera</button></div></section>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <p id="activeFilterSummary" class="active-filter-summary" role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true">＋</span> Keine Filter aktiv. Ausgewählte Merkmale werden gemeinsam angewendet.</p>
+        </section>
 
         <section id="roadMatcher" class="road-matcher" aria-hidden="true" aria-labelledby="matcherTitle">
           <header class="matcher-header">
             <div>
-              <span class="eyebrow">STRAẞEN-MATCHER</span>
-              <h2 id="matcherTitle">Straßen-Screenshot auswerten</h2>
+              <span class="eyebrow">LOKALE KI-ANALYSE</span>
+              <h2 id="matcherTitle">Straßen-Screenshot als Gesamtbild auswerten</h2>
             </div>
-            <p>Der manuelle Matcher funktioniert vollständig ohne KI. Nur beim Klick auf „Mit KI analysieren“ wird das ausgewählte Bild über deinen lokalen Helfer ausgewertet. Straßentypen können innerhalb eines Landes variieren.</p>
+            <p>Die KI bewertet Screenshot und zuvor ausgewählte Filter gemeinsam. Am Ende muss sie genau ein Land als besten Tipp nennen – auch wenn die Konfidenz niedrig ist.</p>
           </header>
 
-          <div class="matcher-workspace">
+          <div class="matcher-workspace ai-only-workspace">
             <div class="matcher-media">
               <div class="matcher-image-slot">
                 <label class="matcher-upload" for="roadScreenshot">
@@ -78,205 +123,30 @@
                   <button id="removeScreenshot" type="button">Bild entfernen</button>
                 </div>
               </div>
-
-            </div>
-
-            <fieldset class="matcher-observations">
-              <legend>Sichtbare Merkmale</legend>
-              <label>Verkehrsseite
-                <select id="matcherTraffic">
-                  <option value="">Beliebig</option>
-                  <option value="left">Linksverkehr</option>
-                  <option value="right">Rechtsverkehr</option>
-                </select>
-              </label>
-              <label>Mittellinienfarbe
-                <select id="matcherCenterColor">
-                  <option value="">Beliebig</option>
-                  <option value="white">Weiß</option>
-                  <option value="yellow">Gelb</option>
-                  <option value="green">Grünes Mittelband</option>
-                  <option value="none">Keine Mittellinie</option>
-                </select>
-              </label>
-              <label>Mittellinienstil
-                <select id="matcherCenterStyle">
-                  <option value="">Beliebig</option>
-                  <option value="dashed">Gestrichelt</option>
-                  <option value="solid">Durchgezogen</option>
-                  <option value="double-solid">Doppelt durchgezogen</option>
-                  <option value="solid-dashed">Durchgezogen + gestrichelt</option>
-                  <option value="none">Keine Mittellinie</option>
-                </select>
-              </label>
-              <label>Randlinienfarbe
-                <select id="matcherEdgeColor">
-                  <option value="">Beliebig</option>
-                  <option value="white">Weiß</option>
-                  <option value="yellow">Gelb</option>
-                  <option value="none">Keine Randlinie</option>
-                </select>
-              </label>
-              <label>Randlinienstil
-                <select id="matcherEdgeStyle">
-                  <option value="">Beliebig</option>
-                  <option value="dashed">Gestrichelt</option>
-                  <option value="solid">Durchgezogen</option>
-                  <option value="double-solid">Doppelt durchgezogen</option>
-                  <option value="solid-dashed">Durchgezogen + gestrichelt</option>
-                  <option value="none">Keine Randlinie</option>
-                </select>
-              </label>
-              <label>Kennzeichenfarbe
-                <select id="matcherPlateColor">
-                  <option value="">Beliebig</option>
-                  <option value="yellow">Gelb</option>
-                  <option value="white">Weiß</option>
-                  <option value="dark">Dunkel</option>
-                </select>
-              </label>
-              <label>Straßenoberfläche
-                <select id="matcherSurface">
-                  <option value="">Beliebig</option>
-                  <option value="asphalt">Asphalt</option>
-                  <option value="concrete">Beton</option>
-                  <option value="gravel">Schotter</option>
-                  <option value="unpaved">Unbefestigt</option>
-                </select>
-              </label>
-              <label class="matcher-checkbox" for="matcherStopOnly">
-                <input id="matcherStopOnly" type="checkbox">
-                <span>STOP-Schild: nur „STOP“ <small>(keine weitere Sprache)</small></span>
-              </label>
-              <label class="matcher-checkbox" for="matcherStopOther">
-                <input id="matcherStopOther" type="checkbox">
-                <span>Stoppschild: anderer Text als „STOP“ <small>(z. B. ALTO, PARE oder 止まれ)</small></span>
-              </label>
-            </fieldset>
-
-            <div class="matcher-interpretation">
-              <div class="matcher-road-card">
-                <div class="matcher-card-heading">
-                  <span>LIVE-MINI-STRAẞE</span>
-                  <button id="matcherReset" type="button">Zurücksetzen</button>
-                </div>
-                <svg id="matcherRoadPreview" viewBox="0 0 300 118" role="img" aria-label="Vorschau der ausgewählten Straßenmerkmale">
-                  <rect class="matcher-preview-ground" width="300" height="118"></rect>
-                  <path class="matcher-preview-road" d="M32 118 L105 20 H195 L268 118 Z"></path>
-                  <path class="matcher-preview-edge left" d="M54 118 L116 20"></path>
-                  <path class="matcher-preview-edge right" d="M246 118 L184 20"></path>
-                  <path class="matcher-preview-band" d="M150 118 L150 20"></path>
-                  <path class="matcher-preview-center primary" d="M150 118 L150 20"></path>
-                  <path class="matcher-preview-center secondary" d="M155 118 L152 20"></path>
-                </svg>
-              </div>
-              <p id="matcherSummary" class="matcher-summary" aria-live="polite">Noch keine Merkmale ausgewählt. Alle Länder bleiben möglich.</p>
             </div>
 
             <section id="aiHelperCard" class="ai-helper-card" aria-labelledby="aiHelperTitle" aria-describedby="aiHelperPrivacy">
               <div class="ai-helper-heading">
                 <div>
-                  <span class="eyebrow">OPTIONALE KI-ERKENNUNG</span>
-                  <h3 id="aiHelperTitle">Merkmale automatisch eintragen</h3>
+                  <span class="eyebrow">PRIVATER PC-HELFER</span>
+                  <h3 id="aiHelperTitle">Länder mit KI ein- und ausschließen</h3>
                 </div>
                 <span id="aiHelperStatus" class="ai-helper-status" data-state="unknown" role="status" aria-live="polite">
                   <span aria-hidden="true"></span>Helfer noch nicht geprüft
                 </span>
               </div>
-              <p class="ai-helper-intro">Starte den lokalen KI-Helfer und wähle ein Bild. Der manuelle Matcher bleibt jederzeit nutzbar.</p>
+              <p class="ai-helper-intro">Der lokale Helfer fragt Groq nach einem verpflichtenden besten Ländertipp sowie weiteren möglichen und ausgeschlossenen Ländern. Deine vorher ausgewählten Filter werden als zusätzlicher Kontext berücksichtigt. Dabei erkennt die KI auch Dachträger, Spiegel, Schnorchel sowie Motorrad-, Trekker- und Bootskameras. Ohne laufenden Helfer wird nichts übertragen.</p>
               <div class="ai-helper-actions">
                 <button id="analyzeScreenshotButton" class="ai-analyze-button" type="button" disabled>Mit KI analysieren</button>
+                <button id="resetAiAnalysisButton" class="ai-reset-button" type="button" disabled>Analyse zurücksetzen</button>
                 <a id="downloadAiHelper" class="ai-helper-link" href="downloads/GeoGuessr-KI-Helfer.exe" download>Helfer herunterladen</a>
                 <a class="ai-helper-link" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Kostenlosen Groq-Key erstellen</a>
               </div>
               <p id="aiHelperPrivacy" class="ai-helper-privacy"><strong>Datenschutz:</strong> Dein Groq-Schlüssel bleibt ausschließlich im lokalen Helfer auf deinem PC. Der Screenshot wird nur nach deinem Klick über diesen Helfer an Groq übertragen.</p>
-              <div id="aiAnalysisResult" class="ai-analysis-result" aria-live="polite" aria-atomic="false" hidden></div>
             </section>
           </div>
 
-          <details class="matcher-advanced" open>
-            <summary>
-              <span>Weitere visuelle Hinweise</span>
-              <small>Schilder · Kennzeichen · Leitpfosten · Straßenrand · Kamera</small>
-            </summary>
-            <fieldset class="matcher-advanced-grid">
-              <legend>Weitere sichtbare Merkmale</legend>
-              <label>Anderer Stoppschild-Text
-                <select id="matcherStopText">
-                  <option value="">Beliebig</option>
-                  <option value="alto">ALTO</option>
-                  <option value="pare">PARE</option>
-                  <option value="berhenti">BERHENTI</option>
-                  <option value="tomare-stop">止まれ oder 止まれ + STOP</option>
-                </select>
-              </label>
-              <label>Warnschild-Grundform
-                <select id="matcherWarningSign">
-                  <option value="">Beliebig</option>
-                  <option value="diamond-yellow">Gelbe Raute</option>
-                  <option value="triangle-white">Weißes Dreieck, roter Rand</option>
-                  <option value="triangle-yellow">Gelbes Dreieck, roter Rand</option>
-                </select>
-              </label>
-              <label>Kennzeichen vorn / hinten
-                <select id="matcherPlateLayout">
-                  <option value="">Beliebig</option>
-                  <option value="white-white">Weiß / weiß</option>
-                  <option value="white-yellow">Weiß / gelb</option>
-                  <option value="yellow-yellow">Gelb / gelb</option>
-                  <option value="dark-dark">Dunkel / dunkel</option>
-                </select>
-              </label>
-              <label>Leitpfosten-Muster
-                <select id="matcherBollard">
-                  <option value="">Beliebig</option>
-                  <option value="white-black">Weiß mit schwarzem Feld</option>
-                  <option value="painted-black-white">Schwarz-weiß bemalt</option>
-                  <option value="black-yellow">Schwarz-gelbe Schutzobjekte</option>
-                </select>
-              </label>
-              <label>Mastmaterial
-                <select id="matcherPole">
-                  <option value="">Beliebig</option>
-                  <option value="wood">Holzmasten</option>
-                  <option value="concrete">Betonmasten</option>
-                </select>
-              </label>
-              <label>Straßenrand / Schulter
-                <select id="matcherShoulder">
-                  <option value="">Beliebig</option>
-                  <option value="paved">Befestigte Schulter</option>
-                  <option value="gravel">Kies- oder Sandschulter</option>
-                  <option value="none">Keine nutzbare Schulter</option>
-                  <option value="drainage">Offene Betonrinne</option>
-                </select>
-              </label>
-              <label>Schildrückseite
-                <select id="matcherSignBack">
-                  <option value="">Beliebig</option>
-                  <option value="dark">Dunkel oder schwarz</option>
-                </select>
-              </label>
-              <label>Kamera-Hinweis
-                <select id="matcherCamera">
-                  <option value="">Beliebig</option>
-                  <option value="low">Auffällig niedrige Kamera</option>
-                </select>
-              </label>
-            </fieldset>
-            <p class="matcher-evidence-note"><strong>Konservative Auswertung:</strong> Amtlich belegte Widersprüche können Länder ausschließen. Regionale oder beobachtungsabhängige Hinweise verändern nur die Reihenfolge; fehlende Daten bleiben „noch möglich“.</p>
-          </details>
-
-          <div class="matcher-results" aria-labelledby="matcherResultsTitle">
-            <div class="matcher-results-heading">
-              <h3 id="matcherResultsTitle">Mögliche Länder</h3>
-              <span>„Passt gut“, „noch möglich“ oder „eher ausgeschlossen“ – ein Treffer öffnet das Länderprofil.</span>
-            </div>
-            <div id="matcherCandidates" class="matcher-candidates" aria-live="polite">
-              <p class="matcher-empty-result">Wähle oben Merkmale aus, um Länder ein- und auszuschließen.</p>
-            </div>
-            <div id="matcherExcludedSummary" class="matcher-excluded-summary">Noch keine Länder ausgeschlossen.</div>
-          </div>
+          <section id="aiAnalysisResult" class="ai-analysis-result ai-country-analysis" aria-live="polite" aria-atomic="false" hidden></section>
         </section>
 
         <div class="map-card">
@@ -307,21 +177,6 @@
           <div id="mapTooltip" class="map-tooltip" role="tooltip" hidden></div>
         </div>
 
-        <aside id="countryBrowser" class="country-browser" aria-hidden="true">
-          <div class="browser-header">
-            <div>
-              <span class="eyebrow">SCHNELLZUGRIFF</span>
-              <h2>Länderbrowser</h2>
-            </div>
-            <button id="closeBrowser" class="icon-button" type="button" aria-label="Länderbrowser schließen">×</button>
-          </div>
-          <div class="browser-tabs" role="tablist" aria-label="Länder gruppieren">
-            <button type="button" class="browser-tab active" data-group="alphabet" role="tab" aria-selected="true">A–Z</button>
-            <button type="button" class="browser-tab" data-group="continent" role="tab" aria-selected="false">Kontinent</button>
-            <button type="button" class="browser-tab" data-group="traffic" role="tab" aria-selected="false">Verkehr</button>
-          </div>
-          <div id="browserList" class="browser-list"></div>
-        </aside>
       </section>
 
       <aside id="countryPanel" class="country-panel" aria-live="polite">
@@ -329,7 +184,7 @@
           <span class="empty-compass">⌖</span>
           <span class="eyebrow">BEREIT ZUR ANALYSE</span>
           <h2>Wähle ein Land</h2>
-          <p>Klicke ein Land auf der Karte an oder öffne den Länderbrowser. Genau das ausgewählte Land und seine wichtigsten GeoGuessr-Merkmale erscheinen anschließend hier.</p>
+          <p>Klicke ein Land auf der Karte an. Das ausgewählte Land und seine wichtigsten GeoGuessr-Merkmale erscheinen anschließend hier.</p>
         </div>
       </aside>
     </main>
@@ -340,44 +195,17 @@
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      data-update-id="2026-08-11-optionale-groq-ki-v1"
-      data-published-at="2026-08-11T14:04:00+02:00"
+      data-update-id="2026-08-11-ki-endtipp-filterkontext-v6"
+      data-published-at="2026-08-11T17:46:16+02:00"
       hidden
     >
       <button id="dismissUpdateNotice" class="update-notice-button" type="button" aria-label="Update-Hinweis schließen">
         <span class="update-notice-heading"><strong id="updateNoticeHeading">Website aktualisiert</strong><span aria-hidden="true">×</span></span>
-        <span id="updateNoticeText" class="update-notice-text">Die optionale KI-Erkennung über den lokalen Groq-Helfer ist jetzt verfügbar. Der manuelle Matcher funktioniert weiterhin ohne KI.</span>
-        <time id="updateNoticeTime" datetime="2026-08-11T14:04:00+02:00">11. August 2026 · 14:04 Uhr</time>
+        <span id="updateNoticeText" class="update-notice-text">Neu: Die KI nennt bei jeder erfolgreichen Screenshot-Analyse genau einen besten Ländertipp – auch bei Unsicherheit – und berücksichtigt dabei deine zuvor ausgewählten Filter.</span>
+        <time id="updateNoticeTime" datetime="2026-08-11T17:46:16+02:00">11. August 2026 · 17:46 Uhr</time>
         <span class="update-notice-dismiss">Zum Schließen hier klicken</span>
       </button>
     </aside>
-
-    <div id="comparisonModal" class="modal" hidden>
-      <div class="modal-backdrop" data-close-modal></div>
-      <section class="comparison-dialog" role="dialog" aria-modal="true" aria-labelledby="comparisonTitle">
-        <header class="comparison-header">
-          <div>
-            <span class="eyebrow">DIREKTVERGLEICH</span>
-            <h2 id="comparisonTitle">Länder auseinanderhalten</h2>
-          </div>
-          <button class="icon-button" type="button" data-close-modal aria-label="Vergleich schließen">×</button>
-        </header>
-        <div class="comparison-controls">
-          <label>Land 1<select id="compareSelect1"></select></label>
-          <label>Land 2<select id="compareSelect2"></select></label>
-          <label>Land 3 (optional)<select id="compareSelect3"></select></label>
-        </div>
-        <div class="preset-row" aria-label="Vergleichsvorlagen">
-          <button type="button" data-preset="ZAF,BWA,LSO">Südliches Afrika</button>
-          <button type="button" data-preset="AUS,NZL">Australien / Neuseeland</button>
-          <button type="button" data-preset="USA,CAN">USA / Kanada</button>
-          <button type="button" data-preset="NOR,SWE,FIN">Nordics</button>
-          <button type="button" data-preset="ARG,URY">Argentinien / Uruguay</button>
-          <button type="button" data-preset="THA,MYS,IDN">Südostasien</button>
-        </div>
-        <div id="comparisonGrid" class="comparison-grid"></div>
-      </section>
-    </div>
 
     <script src="data/world-map.js"></script>
     <script src="data/countries.js"></script>

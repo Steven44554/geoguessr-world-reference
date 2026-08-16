@@ -130,6 +130,11 @@
         updatedAt: "",
         profiles: {},
       },
+      captureMeta: {
+        updatedAt: "",
+        summary: "Noch keine belastbaren Google-Car- oder Aufnahmemeta-Varianten hinterlegt.",
+        variants: [],
+      },
       utilityPoles: { description: "Noch nicht verlässlich erfasst", importance: "LOW" },
       licensePlates: { description: "Noch nicht verlässlich erfasst", importance: "LOW" },
       languages: [],
@@ -1147,6 +1152,11 @@
     "medium",
     "Repräsentatives Muster einer markierten Hauptstraße; Nebenstraßen können ohne Außen- oder Mittellinien auskommen.",
   );
+  countries.RUS.roadLineFilterVariants = {
+    centerColors: ["white", "yellow"],
+    edgeColors: ["white", "yellow"],
+    scope: "Russlands Straßenmarkierungen unterscheiden sich nach Region, Straße und Aufnahmestand; weiße und gelbe Mittel- sowie Randlinien bleiben deshalb mögliche Hinweise.",
+  };
   applyConservativePattern(
     ["PAN", "CRI", "NIC", "HND", "SLV", "GTM", "BLZ", "PRI", "DOM", "HTI", "CUB", "VEN", "GUY", "SUR", "PRY"],
     yellowCenterPattern,
@@ -1715,6 +1725,217 @@
     confidence: "medium", scope: "offizielle Street-View-Aufnahmen", exclusion: "soft",
     note: "Die niedrige Kameraposition ist ein stabiler Zusatzhinweis; Abdeckung und Aufnahmegeneration können sich ändern.",
   });
+
+  const captureMetaSources = {
+    guatemala: "https://www.plonkit.net/guatemala",
+    dominicanRepublic: "https://www.plonkit.net/dominican-republic",
+    ghana: "https://www.plonkit.net/ghana",
+    senegal: "https://www.plonkit.net/senegal",
+    kenya: "https://www.plonkit.net/kenya",
+    mongolia: "https://www.plonkit.net/mongolia",
+    laos: "https://www.plonkit.net/laos",
+    kyrgyzstan: "https://www.plonkit.net/kyrgyzstan",
+    bangladesh: "https://www.plonkit.net/bangladesh",
+    unitedArabEmirates: "https://www.plonkit.net/united-arab-emirates",
+    nigeria: "https://www.plonkit.net/nigeria",
+    faroeIslands: "https://www.plonkit.net/faroe-islands",
+    uganda: "https://www.plonkit.net/uganda",
+    vietnam: "https://www.plonkit.net/vietnam",
+    madagascar: "https://www.plonkit.net/madagascar",
+    costaRica: "https://www.plonkit.net/costa-rica",
+    malta: "https://www.plonkit.net/malta",
+    australia: "https://www.plonkit.net/australia",
+    chile: "https://www.plonkit.net/chile",
+    motorcycles: "https://geohints.com/meta/googleVehicles/motorcycles",
+    boats: "https://geohints.com/meta/googleVehicles/boats",
+  };
+
+  function addCaptureMeta(iso3, summary, variants) {
+    const country = countries[iso3];
+    if (!country) return;
+    country.captureMeta = {
+      updatedAt: "2026-08-11",
+      summary,
+      variants: variants.map((variant) => ({
+        captureType: variant.captureType || "car",
+        features: [...new Set(variant.features || [])],
+        generation: variant.generation || "",
+        typicality: variant.typicality || "variant",
+        scope: variant.scope || "abdeckungsabhängige Variante",
+        confidence: variant.confidence || "medium",
+        note: variant.note || "Aufnahmegeneration und Region können abweichen.",
+        sources: [...new Set(variant.sources || [])],
+      })),
+    };
+    if (!country.geoGuessrClues.some((clue) => clue.category === "Fahrzeug-Meta")) {
+      country.geoGuessrClues.push({
+        importance: "MEDIUM",
+        category: "Fahrzeug-Meta",
+        text: summary,
+        reliability: "abdeckungs- und generationsabhängig",
+      });
+    }
+  }
+
+  addCaptureMeta("GTM", "Graues Google-Auto mit Dachträger und sichtbaren Seitenspiegeln.", [{
+    captureType: "car", features: ["roof-rack", "mirrors"], generation: "Gen 3", typicality: "typical",
+    scope: "reguläre Autoabdeckung", confidence: "high",
+    note: "Dachträger und Spiegel gemeinsam werten; Landschaft und Straßenhinweise zur Bestätigung nutzen.",
+    sources: [captureMetaSources.guatemala],
+  }]);
+  addCaptureMeta("DOM", "Dachträger mit breiten schwarzen Einlagen; Seitenspiegel sind dabei nicht sichtbar.", [{
+    captureType: "car", features: ["roof-rack", "tape"], generation: "Gen 3", typicality: "typical",
+    scope: "reguläre Autoabdeckung", confidence: "high",
+    note: "Die breiten schwarzen Streifen auf dem Dachträger trennen diese Variante besonders von Guatemala.",
+    sources: [captureMetaSources.dominicanRepublic, captureMetaSources.guatemala],
+  }]);
+  addCaptureMeta("GHA", "Gen-3-Dachträger mit schwarzem Klebeband; neuere Gen-4-Pickups sehen anders aus.", [
+    {
+      captureType: "car", features: ["roof-rack", "tape"], generation: "Gen 3", typicality: "typical",
+      scope: "reguläre Gen-3-Straßenabdeckung", confidence: "high",
+      note: "Das schwarze Tape sitzt typischerweise rechts am vorderen Bügel.", sources: [captureMetaSources.ghana],
+    },
+    {
+      captureType: "car", features: [], generation: "Gen 4", typicality: "variant",
+      scope: "neuere reguläre Abdeckung", confidence: "high",
+      note: "Grauer oder weißer Pickup, oft teilweise verwischt; Reservate besitzen weitere Varianten.", sources: [captureMetaSources.ghana],
+    },
+  ]);
+  addCaptureMeta("SEN", "Gen-3-Dachträger mit sichtbarem rechtem Seitenspiegel; Gen 4 nutzt mehrere Fahrzeugvarianten.", [{
+    captureType: "car", features: ["roof-rack", "mirrors"], generation: "Gen 3", typicality: "typical",
+    scope: "reguläre Gen-3-Abdeckung", confidence: "high",
+    note: "Der rechte Spiegel ist sichtbar; die ältere Einordnung „nur Dachträger“ ist deshalb irreführend.",
+    sources: [captureMetaSources.senegal],
+  }]);
+  addCaptureMeta("KEN", "Dachträger und Schnorchel sind ein starkes, aber nicht flächendeckendes Fahrzeug-Meta.", [{
+    captureType: "car", features: ["roof-rack", "snorkel"], generation: "Gen 3", typicality: "typical",
+    scope: "häufige Gen-3- und Parkabdeckung", confidence: "high",
+    note: "Neuere Pickups und einzelne Abschnitte ohne sichtbares Fahrzeug bleiben möglich.", sources: [captureMetaSources.kenya],
+  }]);
+  addCaptureMeta("MNG", "Regional wechselnde Pickups mit Dachträger, Spiegeln, Schnorchel und Dachausrüstung.", [{
+    captureType: "car", features: ["roof-rack", "mirrors", "snorkel", "equipment"], generation: "Gen 3 / Gen 4", typicality: "variant",
+    scope: "regionaler Fahrzeug-Meta-Mix", confidence: "high",
+    note: "Zelt, Gepäck, Ersatzrad, rote Spiegel und Schnorchel können je nach Region unterschiedlich kombiniert sein.",
+    sources: [captureMetaSources.mongolia],
+  }]);
+  addCaptureMeta("LAO", "Außerhalb Vientianes häufig zwei Metallbügel und schwarze Spiegel; die Hauptstadt hat keinen Dachträger.", [
+    {
+      captureType: "car", features: ["roof-rack", "mirrors"], generation: "Gen 3", typicality: "typical",
+      scope: "Luang Prabang, Vang Vieng, Savannakhet und Pakse", confidence: "high",
+      note: "Zwei Metallbügel und schwarze Seitenspiegel sind gemeinsam sichtbar.", sources: [captureMetaSources.laos],
+    },
+    {
+      captureType: "car", features: [], generation: "Gen 3", typicality: "variant",
+      scope: "Vientiane", confidence: "high",
+      note: "In der Hauptstadt ist der Dachträger nicht sichtbar.", sources: [captureMetaSources.laos],
+    },
+  ]);
+  addCaptureMeta("KGZ", "Heller Wagen mit Dachbügeln und großen Seitenspiegeln in der Gen-3-Abdeckung.", [{
+    captureType: "car", features: ["roof-rack", "mirrors"], generation: "Gen 3", typicality: "typical",
+    scope: "reguläre Gen-3-Abdeckung", confidence: "high",
+    note: "Zur Trennung von Guatemala und Laos immer Landschaft und Straßenbild mitprüfen.", sources: [captureMetaSources.kyrgyzstan],
+  }]);
+  addCaptureMeta("BGD", "Rote Spiegel und Dachbügel kommen als eine von mehreren Fahrzeugvarianten vor.", [{
+    captureType: "car", features: ["roof-rack", "mirrors"], generation: "Gen 3", typicality: "variant",
+    scope: "eine von mehreren Gen-3-Varianten", confidence: "high",
+    note: "Gen 4 nutzt außerdem schwarze oder weiße Autos; das Meta ist nicht landesweit exklusiv.", sources: [captureMetaSources.bangladesh],
+  }]);
+  addCaptureMeta("ARE", "Schwarzer Dachträger auf weißem Gen-3-Auto; neuere Abdeckung nutzt weitere Pickup- und Trekker-Varianten.", [
+    {
+      captureType: "car", features: ["roof-rack"], generation: "Gen 3", typicality: "typical",
+      scope: "nahezu alle Gen-3-Autoaufnahmen", confidence: "high",
+      note: "Gen-4-Aufnahmen können einen weißen, teilweise verwischten Pickup zeigen.", sources: [captureMetaSources.unitedArabEmirates],
+    },
+    {
+      captureType: "trekker", features: [], generation: "Gen 4", typicality: "variant",
+      scope: "Sonderabdeckung", confidence: "medium",
+      note: "Nicht mit einer landesweit ausschließlichen Trekker-Abdeckung gleichsetzen.", sources: [captureMetaSources.unitedArabEmirates],
+    },
+  ]);
+  addCaptureMeta("NGA", "Gen-3-Dachträger sowie wechselnde Pickup-, Folgefahrzeug- und Unschärfevarianten.", [{
+    captureType: "car", features: ["roof-rack"], generation: "Gen 3", typicality: "variant",
+    scope: "größere Teile der Gen-3-Abdeckung", confidence: "medium",
+    note: "Fahrzeug und Begleitauto variieren nach Aufnahmegeneration.", sources: [captureMetaSources.nigeria],
+  }]);
+  addCaptureMeta("FRO", "Einfacher grauer Dachträger in Gen 3; schwarzer Pickup mit Antenne in Gen 4.", [{
+    captureType: "car", features: ["roof-rack"], generation: "Gen 3", typicality: "typical",
+    scope: "sämtliche Gen-3-Autoabdeckung", confidence: "high",
+    note: "Bei Gen 4 erscheint stattdessen ein Pickup; Generation zuerst bestimmen.", sources: [captureMetaSources.faroeIslands],
+  }]);
+  addCaptureMeta("UGA", "Kampala zeigt ein weißes kantiges Auto mit quadratischen Seitenspiegeln; Nationalparks weichen ab.", [{
+    captureType: "car", features: ["mirrors"], generation: "Gen 3", typicality: "variant",
+    scope: "Kampala und Umgebung", confidence: "high",
+    note: "Die Spiegelvariante ist ortsgebunden und kein landesweiter Standard.", sources: [captureMetaSources.uganda],
+  }]);
+  addCaptureMeta("VNM", "Viel Motorradkamera-Abdeckung neben normaler Autoabdeckung; Vietnam ist nicht „nur Motorrad“.", [{
+    captureType: "motorcycle", features: [], generation: "Gen 3 / Gen 4", typicality: "typical",
+    scope: "große Teile der offiziellen Abdeckung", confidence: "high",
+    note: "Helm, Unschärfe und niedrige Kameraposition mit Landschaft und Sprache kombinieren.", sources: [captureMetaSources.vietnam],
+  }]);
+  addCaptureMeta("MDG", "Auffällige Trekker-, Boots- und weitere Sonderabdeckung; keine exklusive Einzelform.", [
+    {
+      captureType: "trekker", features: [], generation: "verschiedene", typicality: "typical",
+      scope: "begrenzte offizielle Abdeckung", confidence: "high",
+      note: "Das Umfeld und die konkrete Trekker-Ausführung bleiben entscheidend.", sources: [captureMetaSources.madagascar],
+    },
+    {
+      captureType: "boat", features: [], generation: "verschiedene", typicality: "variant",
+      scope: "begrenzte Küsten- und Wasserabdeckung", confidence: "high",
+      note: "Bootsabdeckung ist ein starker Kontext, aber nicht weltweit exklusiv.", sources: [captureMetaSources.madagascar, captureMetaSources.boats],
+    },
+  ]);
+  addCaptureMeta("CRI", "Reguläre Gen-4-Autoabdeckung sowie einzelne Trekker- und Bootsvarianten.", [
+    {
+      captureType: "trekker", features: [], generation: "Gen 3 / Gen 4", typicality: "variant",
+      scope: "einzelne Trekker-Orte", confidence: "high",
+      note: "Costa Rica besitzt zusätzlich reguläre Autoabdeckung und ist nicht „nur Trekker“.", sources: [captureMetaSources.costaRica],
+    },
+    {
+      captureType: "boat", features: [], generation: "Gen 4", typicality: "rare",
+      scope: "nahe Caño Island", confidence: "high",
+      note: "Seltene Boots-/Trekker-Aufnahme; Umgebung mitprüfen.", sources: [captureMetaSources.costaRica],
+    },
+  ]);
+  addCaptureMeta("MLT", "Boots- beziehungsweise Schiffs-Trekker zwischen Malta und Gozo.", [{
+    captureType: "boat", features: [], generation: "Trekker", typicality: "rare",
+    scope: "Verbindung zwischen Malta und Gozo", confidence: "high",
+    note: "Spezielle Wasserabdeckung, nicht die normale Straßenansicht.", sources: [captureMetaSources.malta],
+  }]);
+  addCaptureMeta("GRL", "Motorrad- und Bootsaufnahmen kommen als besondere, stark ortsabhängige Abdeckung vor.", [
+    {
+      captureType: "motorcycle", features: [], generation: "verschiedene", typicality: "rare",
+      scope: "einzelne Sonderabdeckung", confidence: "medium", note: "Nicht flächendeckend.", sources: [captureMetaSources.motorcycles],
+    },
+    {
+      captureType: "boat", features: [], generation: "verschiedene", typicality: "variant",
+      scope: "Küsten- und Fjordabdeckung", confidence: "medium", note: "Wasser und arktische Umgebung gemeinsam werten.", sources: [captureMetaSources.boats],
+    },
+  ]);
+
+  ["IDN", "MYS", "PHL", "TWN", "THA", "ITA", "MEX", "NZL", "COL", "PER"].forEach((iso3) => {
+    const country = countries[iso3];
+    if (!country) return;
+    const existing = country.captureMeta?.variants || [];
+    addCaptureMeta(
+      iso3,
+      `${country.name}: Motorradkamera kommt als seltene oder regionale Sonderabdeckung vor.`,
+      [...existing, {
+        captureType: "motorcycle", features: [], generation: "verschiedene", typicality: "rare",
+        scope: "seltene oder regionale Sonderabdeckung", confidence: "medium",
+        note: "Nur als möglicher Zusatzhinweis werten; nicht als landesweit typisches Meta.", sources: [captureMetaSources.motorcycles],
+      }],
+    );
+  });
+  addCaptureMeta("AUS", "Schnorchel am Aufnahmefahrzeug kommt selten in Park- oder Sonderabdeckung vor.", [{
+    captureType: "car", features: ["snorkel"], generation: "verschiedene", typicality: "rare",
+    scope: "seltene Park- oder Sonderabdeckung", confidence: "medium",
+    note: "Kein landesweit typisches Ausschlussmerkmal.", sources: [captureMetaSources.australia],
+  }]);
+  addCaptureMeta("CHL", "Schnorchel am Aufnahmefahrzeug kommt selten in Park- oder Sonderabdeckung vor.", [{
+    captureType: "car", features: ["snorkel"], generation: "verschiedene", typicality: "rare",
+    scope: "seltene Park- oder Sonderabdeckung", confidence: "medium",
+    note: "Kein landesweit typisches Ausschlussmerkmal.", sources: [captureMetaSources.chile],
+  }]);
 
   window.COUNTRIES = countries;
   window.COUNTRY_IMPORTANCE_ORDER = { "VERY HIGH": 0, HIGH: 1, MEDIUM: 2, LOW: 3 };

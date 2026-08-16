@@ -19,55 +19,36 @@
     panel: document.getElementById("countryPanel"),
     search: document.getElementById("searchInput"),
     searchSummary: document.getElementById("searchSummary"),
+    filterDashboard: document.getElementById("filterDashboard"),
+    filterPanel: document.getElementById("filterPanel"),
+    filterResultCount: document.getElementById("filterResultCount"),
+    activeFilterCount: document.getElementById("activeFilterCount"),
+    activeFilterSummary: document.getElementById("activeFilterSummary"),
+    allFilterChip: document.getElementById("allFilterChip"),
     filters: document.getElementById("filters"),
-    browser: document.getElementById("countryBrowser"),
-    browserButton: document.getElementById("browserButton"),
-    closeBrowser: document.getElementById("closeBrowser"),
-    browserList: document.getElementById("browserList"),
-    compareButton: document.getElementById("compareButton"),
-    compareCount: document.getElementById("compareCount"),
-    modal: document.getElementById("comparisonModal"),
-    comparisonGrid: document.getElementById("comparisonGrid"),
-    compareSelects: [
-      document.getElementById("compareSelect1"),
-      document.getElementById("compareSelect2"),
-      document.getElementById("compareSelect3"),
-    ],
     matcherButton: document.getElementById("matcherButton"),
     roadMatcher: document.getElementById("roadMatcher"),
     roadScreenshot: document.getElementById("roadScreenshot"),
     matcherPreview: document.getElementById("matcherPreview"),
     matcherPreviewImage: document.getElementById("matcherPreviewImage"),
     removeScreenshot: document.getElementById("removeScreenshot"),
-    matcherTraffic: document.getElementById("matcherTraffic"),
-    matcherCenterColor: document.getElementById("matcherCenterColor"),
-    matcherCenterStyle: document.getElementById("matcherCenterStyle"),
-    matcherEdgeColor: document.getElementById("matcherEdgeColor"),
-    matcherEdgeStyle: document.getElementById("matcherEdgeStyle"),
-    matcherPlateColor: document.getElementById("matcherPlateColor"),
-    matcherSurface: document.getElementById("matcherSurface"),
-    matcherStopOnly: document.getElementById("matcherStopOnly"),
-    matcherStopOther: document.getElementById("matcherStopOther"),
-    matcherStopText: document.getElementById("matcherStopText"),
-    matcherWarningSign: document.getElementById("matcherWarningSign"),
-    matcherPlateLayout: document.getElementById("matcherPlateLayout"),
-    matcherBollard: document.getElementById("matcherBollard"),
-    matcherPole: document.getElementById("matcherPole"),
-    matcherShoulder: document.getElementById("matcherShoulder"),
-    matcherSignBack: document.getElementById("matcherSignBack"),
-    matcherCamera: document.getElementById("matcherCamera"),
     stopOnlyFilterChip: document.getElementById("stopOnlyFilterChip"),
     stopOtherFilterChip: document.getElementById("stopOtherFilterChip"),
     whiteEdgeFilterChip: document.getElementById("whiteEdgeFilterChip"),
     whitePlateFilterChip: document.getElementById("whitePlateFilterChip"),
-    matcherReset: document.getElementById("matcherReset"),
-    matcherSummary: document.getElementById("matcherSummary"),
-    matcherRoadPreview: document.getElementById("matcherRoadPreview"),
-    matcherCandidates: document.getElementById("matcherCandidates"),
-    matcherExcludedSummary: document.getElementById("matcherExcludedSummary"),
+    carMetaFilters: document.getElementById("carMetaFilters"),
+    roofRackFilterChip: document.getElementById("roofRackFilterChip"),
+    mirrorFilterChip: document.getElementById("mirrorFilterChip"),
+    snorkelFilterChip: document.getElementById("snorkelFilterChip"),
+    equipmentFilterChip: document.getElementById("equipmentFilterChip"),
+    tapeFilterChip: document.getElementById("tapeFilterChip"),
+    motorcycleFilterChip: document.getElementById("motorcycleFilterChip"),
+    trekkerFilterChip: document.getElementById("trekkerFilterChip"),
+    boatFilterChip: document.getElementById("boatFilterChip"),
     aiHelperCard: document.getElementById("aiHelperCard"),
     aiHelperStatus: document.getElementById("aiHelperStatus"),
     analyzeScreenshotButton: document.getElementById("analyzeScreenshotButton"),
+    resetAiAnalysisButton: document.getElementById("resetAiAnalysisButton"),
     aiAnalysisResult: document.getElementById("aiAnalysisResult"),
     downloadAiHelper: document.getElementById("downloadAiHelper"),
     updateNotice: document.getElementById("updateNotice"),
@@ -80,50 +61,168 @@
   const AI_HELPER_HEADER = { "X-GeoGuessr-Helper": "1" };
   const AI_HELPER_HEALTH_TIMEOUT_MS = 5000;
   const AI_HELPER_ANALYSIS_TIMEOUT_MS = 60000;
-  const AI_CONFIDENCE_THRESHOLD = 0.6;
   const AI_MAX_IMAGE_BYTES = 12 * 1024 * 1024;
   const AI_ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-  const AI_OBSERVATION_RULES = Object.freeze({
-    traffic: { element: "matcherTraffic", values: ["left", "right"], label: "Verkehrsseite" },
-    centerColor: { element: "matcherCenterColor", values: ["white", "yellow", "green", "none"], label: "Mittellinienfarbe" },
-    centerStyle: { element: "matcherCenterStyle", values: ["dashed", "solid", "double-solid", "solid-dashed", "none"], label: "Mittellinienstil" },
-    edgeColor: { element: "matcherEdgeColor", values: ["white", "yellow", "none"], label: "Randlinienfarbe" },
-    edgeStyle: { element: "matcherEdgeStyle", values: ["dashed", "solid", "double-solid", "solid-dashed", "none"], label: "Randlinienstil" },
-    plateColor: { element: "matcherPlateColor", values: ["yellow", "white", "dark"], label: "Kennzeichenfarbe" },
-    surface: { element: "matcherSurface", values: ["asphalt", "concrete", "gravel", "unpaved"], label: "Straßenoberfläche" },
-    stopOnly: { element: "matcherStopOnly", values: [true], label: "Stoppschild nur mit „STOP“" },
-    stopOther: { element: "matcherStopOther", values: [true], label: "Stoppschild mit anderem Text" },
-    stopText: { element: "matcherStopText", values: ["alto", "pare", "berhenti", "tomare-stop"], label: "Stoppschild-Text" },
-    warningSign: { element: "matcherWarningSign", values: ["diamond-yellow", "triangle-white", "triangle-yellow"], label: "Warnschild-Grundform" },
-    plateLayout: { element: "matcherPlateLayout", values: ["white-white", "white-yellow", "yellow-yellow", "dark-dark"], label: "Kennzeichen vorn / hinten" },
-    bollard: { element: "matcherBollard", values: ["white-black", "painted-black-white", "black-yellow"], label: "Leitpfosten-Muster" },
-    pole: { element: "matcherPole", values: ["wood", "concrete"], label: "Mastmaterial" },
-    shoulder: { element: "matcherShoulder", values: ["paved", "gravel", "none", "drainage"], label: "Straßenrand / Schulter" },
-    signBack: { element: "matcherSignBack", values: ["dark"], label: "Schildrückseite" },
-    camera: { element: "matcherCamera", values: ["low"], label: "Kamera-Hinweis" },
+  const AI_LIKELY_CONFIDENCE = 0.6;
+  const AI_EXCLUDED_CONFIDENCE = 0.72;
+  const AI_COUNTRY_LIMITS = Object.freeze({ likely: 5, possible: 10, excluded: 12 });
+  const AI_CLUE_LABELS = Object.freeze({
+    vegetation: "Vegetation",
+    climate: "Klimaeindruck",
+    landscape: "Landschaft",
+    bollards: "Leitpfosten / Bollards",
+    road: "Straße und Markierungen",
+    signs: "Verkehrsschilder",
+    language: "Sprache und Schrift",
+    plates: "Kennzeichen",
+    architecture: "Architektur",
+    "utility-poles": "Masten und Leitungen",
+    traffic: "Verkehrsseite",
+    camera: "Kamera-Hinweis",
+    "vehicle-meta": "Google-Car / Fahrzeug-Meta",
+    other: "Weiterer Bildhinweis",
   });
+  const AI_ROBUST_EXCLUSION_CATEGORIES = new Set([
+    "bollards",
+    "road",
+    "signs",
+    "language",
+    "plates",
+    "architecture",
+    "utility-poles",
+    "traffic",
+  ]);
+  const AI_FILTER_CONTEXT_LABELS = Object.freeze({
+    "traffic:left": "Linksverkehr",
+    "traffic:right": "Rechtsverkehr",
+    "centerColor:yellow": "gelbe Mittellinie",
+    "centerColor:white": "weiße Mittellinie",
+    "edgeColor:yellow": "gelbe Randlinie",
+    "edgeColor:white": "weiße Randlinie",
+    "plateColor:yellow": "gelbe Kennzeichen",
+    "plateColor:white": "weiße Kennzeichen",
+    "terrain:tropical": "tropische Landschaft",
+    "terrain:desert": "Wüstenlandschaft",
+    "terrain:mountain": "Gebirge",
+    "terrain:flat": "sehr flache Landschaft",
+    "terrain:forest": "waldreiche Landschaft",
+    "terrain:coast": "Insel- oder Küstenlandschaft",
+    "language:english": "sichtbares Englisch",
+    "language:spanish": "sichtbares Spanisch",
+    "language:portuguese": "sichtbares Portugiesisch",
+    "language:french": "sichtbares Französisch",
+    "language:german": "sichtbares Deutsch",
+    "language:dutch": "sichtbares Niederländisch",
+    "continent:europe": "Europa",
+    "continent:africa": "Afrika",
+    "continent:asia": "Asien",
+    "continent:north-america": "Nordamerika",
+    "continent:south-america": "Südamerika",
+    "continent:oceania": "Ozeanien",
+    "stopSign:stop-only": "Stoppschild nur mit STOP",
+    "stopSign:other-text": "Stoppschild mit anderem oder zusätzlichem Text",
+    "vehicleFeature:roof-rack": "Dachträger",
+    "vehicleFeature:mirrors": "sichtbare Seitenspiegel",
+    "vehicleFeature:snorkel": "Schnorchel",
+    "vehicleFeature:equipment": "Zelt oder Gepäck am Aufnahmefahrzeug",
+    "vehicleFeature:tape": "Klebeband oder markante Streifen am Aufnahmefahrzeug",
+    "captureType:motorcycle": "Motorradkamera",
+    "captureType:trekker": "Trekker- oder Fußkamera",
+    "captureType:boat": "Bootskamera",
+    "warningSign:diamond-yellow": "gelbes rautenförmiges Warnschild",
+    "warningSign:triangle-white": "weißes Warndreieck mit rotem Rand",
+    "warningSign:triangle-yellow": "gelbes Warndreieck mit rotem Rand",
+    "plateLayout:white-yellow": "Kennzeichen vorn weiß und hinten gelb",
+    "plateLayout:yellow-yellow": "gelbe Kennzeichen vorn und hinten",
+    "bollard:white-black": "weiße Leitpfosten mit schwarzem Feld",
+    "bollard:painted-black-white": "schwarz-weiß bemalte Leitpfosten",
+    "bollard:black-yellow": "schwarz-gelbe Leitpfosten oder Schutzobjekte",
+    "pole:wood": "Holzmasten",
+    "pole:concrete": "Betonmasten",
+    "shoulder:paved": "befestigte Straßenschulter",
+    "shoulder:gravel": "Kies- oder Sandschulter",
+    "shoulder:none": "keine nutzbare Straßenschulter",
+    "shoulder:drainage": "offene Betonrinne am Straßenrand",
+    "signBack:dark": "dunkle Schildrückseiten",
+    "camera:low": "auffällig niedrige Kamera",
+  });
+  const AI_BASE_FILTER_CONTEXT = Object.freeze({
+    "traffic:left": { key: "traffic", value: "left" },
+    "traffic:right": { key: "traffic", value: "right" },
+    "center:gelb": { key: "centerColor", value: "yellow" },
+    "center:weiß": { key: "centerColor", value: "white" },
+    "edge:gelb": { key: "edgeColor", value: "yellow" },
+    "plates:gelb": { key: "plateColor", value: "yellow" },
+    "terrain:trop": { key: "terrain", value: "tropical" },
+    "terrain:wüste": { key: "terrain", value: "desert" },
+    "terrain:berg": { key: "terrain", value: "mountain" },
+    "terrain:flach": { key: "terrain", value: "flat" },
+    "terrain:wald": { key: "terrain", value: "forest" },
+    "terrain:insel": { key: "terrain", value: "coast" },
+    "language:Englisch": { key: "language", value: "english" },
+    "language:Spanisch": { key: "language", value: "spanish" },
+    "language:Portugiesisch": { key: "language", value: "portuguese" },
+    "language:Französisch": { key: "language", value: "french" },
+    "language:Deutsch": { key: "language", value: "german" },
+    "language:Niederländisch": { key: "language", value: "dutch" },
+    "continent:Europa": { key: "continent", value: "europe" },
+    "continent:Afrika": { key: "continent", value: "africa" },
+    "continent:Asien": { key: "continent", value: "asia" },
+    "continent:Nordamerika": { key: "continent", value: "north-america" },
+    "continent:Südamerika": { key: "continent", value: "south-america" },
+    "continent:Ozeanien": { key: "continent", value: "oceania" },
+  });
+
+  function createEmptyQuickCriteria() {
+    return {
+      stopOnly: false,
+      stopOther: false,
+      edgeColor: "",
+      plateColor: "",
+      roofRack: false,
+      mirrors: false,
+      snorkel: false,
+      equipment: false,
+      tape: false,
+      captureType: "",
+      warningSign: "",
+      plateLayout: "",
+      bollard: "",
+      pole: "",
+      shoulder: "",
+      signBack: "",
+      camera: "",
+    };
+  }
 
   const state = {
     selectedIso: null,
     searchQuery: "",
     activeFilters: new Set(),
-    browserGroup: "alphabet",
     favorites: loadFavorites(),
-    compareSelection: [],
     transform: { x: 0, y: 0, scale: 1 },
     pointer: null,
     dragged: false,
     mapSelectionActive: false,
     matcher: {
       active: false,
+      source: null,
       results: new Map(),
       roadCandidates: new Set(),
       manualExcluded: new Set(),
+      quickCriteria: createEmptyQuickCriteria(),
       previewUrl: null,
       imageName: "",
       ai: {
         analyzing: false,
         healthRequestId: 0,
+        analysisRequestId: 0,
+        controller: null,
+        countryGroups: { likely: [], possible: [], excluded: [] },
+        imageClues: [],
+        bestGuessIso: "",
+        filterContext: { version: 1, activeFilters: [] },
+        analysis: null,
       },
     },
   };
@@ -669,6 +768,7 @@
         JSON.stringify(country.signs),
         JSON.stringify(country.stopSign),
         JSON.stringify(country.visualEvidence),
+        JSON.stringify(country.captureMeta),
         JSON.stringify(country.utilityPoles),
         JSON.stringify(country.licensePlates),
         country.languages.join(" "),
@@ -684,10 +784,30 @@
     const [type, value] = filter.split(":");
     const valueNormalized = normalize(value);
     if (type === "traffic") return country.traffic === value;
-    if (type === "center") return normalize(country.roadMarkings.centerColor).includes(valueNormalized);
-    if (type === "edge") return normalize(`${country.roadMarkings.leftEdgeColor} ${country.roadMarkings.rightEdgeColor}`).includes(valueNormalized);
+    if (type === "center") {
+      const variantColor = matcherColor(value);
+      return country.roadLineFilterVariants?.centerColors?.includes(variantColor)
+        || normalize(country.roadMarkings.centerColor).includes(valueNormalized);
+    }
+    if (type === "edge") {
+      const variantColor = matcherColor(value);
+      return country.roadLineFilterVariants?.edgeColors?.includes(variantColor)
+        || normalize(`${country.roadMarkings.leftEdgeColor} ${country.roadMarkings.rightEdgeColor}`).includes(valueNormalized);
+    }
     if (type === "plates") return normalize(country.licensePlates.description).includes(valueNormalized);
-    if (type === "terrain") return normalize(country.landscape).includes(valueNormalized);
+    if (type === "terrain") {
+      const landscape = normalize(country.landscape);
+      const terrainTerms = {
+        trop: ["trop", "uppig", "palmen", "regenwald"],
+        wuste: ["wuste", "trocken", "sand", "durre", "steppe", "atacama"],
+        berg: ["berg", "anden", "gebirge", "alpin", "hochland", "hugel", "fjord"],
+        flach: ["flach", "ebene", "pampa", "tiefland", "prarie"],
+        wald: ["wald", "bewald", "nadel", "birken", "regenwald"],
+        insel: ["insel", "kuste", "fjord", "archipel"],
+      };
+      return (terrainTerms[valueNormalized] || [valueNormalized]).some((term) => landscape.includes(term));
+    }
+    if (type === "language") return normalize(country.languages.join(" ")).includes(valueNormalized);
     if (type === "continent") return normalize(country.continent) === valueNormalized;
     if (type === "favorites") return state.favorites.has(country.iso3);
     return true;
@@ -697,41 +817,100 @@
     return normalize(state.searchQuery).split(" ").filter(Boolean);
   }
 
-  function matchesSearchAndQuickFilters(country, tokens = currentSearchTokens()) {
+  function matchesSearchAndBaseFilters(country, tokens = currentSearchTokens()) {
     const queryMatches = tokens.length === 0
       || tokens.every((token) => searchIndexes.get(country.iso3)?.includes(token));
     const filterMatches = [...state.activeFilters].every((filter) => matchesFilter(country, filter));
     return queryMatches && filterMatches;
   }
 
+  function matchesSearchAndQuickFilters(country, tokens = currentSearchTokens()) {
+    const baseMatches = matchesSearchAndBaseFilters(country, tokens);
+    const quickCriteria = readMatcherCriteria();
+    const quickMatches = !hasMatcherCriteria(quickCriteria)
+      || evaluateMatcherCountry(country, quickCriteria).status !== "excluded";
+    return baseMatches && quickMatches;
+  }
+
   function updateMapMatches() {
     const tokens = currentSearchTokens();
     const matcherCriteriaCount = selectedMatcherCount(readMatcherCriteria());
     const manualExclusionCount = state.matcher.manualExcluded.size;
+    const aiAnalysisActive = state.matcher.active && state.matcher.source === "ai";
     let matchCount = 0;
+    let strongQuickMatches = 0;
+    let possibleQuickMatches = 0;
+    let excludedQuickMatches = 0;
     elements.map.classList.toggle("has-matcher", state.matcher.active);
+    elements.map.classList.toggle("has-ai-analysis", aiAnalysisActive);
 
     countryList.forEach((country) => {
       const matches = matchesSearchAndQuickFilters(country, tokens);
-      const matcherStatus = state.matcher.active ? state.matcher.results.get(country.iso3)?.status : null;
+      const matcherStatus = state.matcher.active
+        ? (state.matcher.results.get(country.iso3)?.status || (aiAnalysisActive ? "unassessed" : null))
+        : null;
       const matcherExcluded = matcherStatus === "excluded";
+      const aiLikely = aiAnalysisActive && matcherStatus === "match";
+      const aiPossible = aiAnalysisActive && matcherStatus === "possible";
+      const aiExcluded = aiAnalysisActive && matcherExcluded;
+      const aiUnassessed = aiAnalysisActive && matcherStatus === "unassessed";
+      const aiBestGuess = aiAnalysisActive && state.matcher.ai.bestGuessIso === country.iso3;
+      const includedByAnalysis = aiLikely || aiPossible;
+      if (!aiAnalysisActive && matcherCriteriaCount > 0 && matchesSearchAndBaseFilters(country, tokens)) {
+        if (matcherStatus === "match") strongQuickMatches += 1;
+        else if (matcherStatus === "excluded") excludedQuickMatches += 1;
+        else possibleQuickMatches += 1;
+      }
       const node = countryElements.get(country.iso3);
       const border = countryBorderElements.get(country.iso3);
       const roadGlyph = roadLineElements.get(country.iso3);
       const matcherTargets = [node, border, roadGlyph].filter(Boolean);
-      if (matches && !matcherExcluded) matchCount += 1;
+      if (matches && (aiAnalysisActive ? includedByAnalysis : !matcherExcluded)) matchCount += 1;
       matcherTargets.forEach((target) => {
         target.classList.toggle("is-matcher-match", matcherStatus === "match");
         target.classList.toggle("is-matcher-possible", matcherStatus === "possible");
         target.classList.toggle("is-matcher-excluded", matcherExcluded);
+        target.classList.toggle("is-ai-likely", aiLikely);
+        target.classList.toggle("is-ai-possible", aiPossible);
+        target.classList.toggle("is-ai-excluded", aiExcluded);
+        target.classList.toggle("is-ai-unassessed", aiUnassessed);
+        target.classList.toggle("is-ai-best-guess", aiBestGuess);
       });
-      roadGlyph?.classList.toggle("is-dimmed", !matches || matcherExcluded);
-      border?.classList.toggle("is-dimmed", !matches || matcherExcluded);
-      border?.classList.toggle("is-match", matches && (tokens.length > 0 || state.activeFilters.size > 0));
+      const dimForAnalysis = aiAnalysisActive ? aiUnassessed : matcherExcluded;
+      roadGlyph?.classList.toggle("is-dimmed", !matches || dimForAnalysis);
+      border?.classList.toggle("is-dimmed", !matches || dimForAnalysis);
+      border?.classList.toggle("is-match", matches && !aiExcluded && !aiUnassessed && (tokens.length > 0 || state.activeFilters.size > 0));
       if (!node) return;
-      node.classList.toggle("is-dimmed", !matches || matcherExcluded);
-      node.classList.toggle("is-match", matches && (tokens.length > 0 || state.activeFilters.size > 0));
+      node.classList.toggle("is-dimmed", !matches || dimForAnalysis);
+      node.classList.toggle("is-match", matches && !aiExcluded && !aiUnassessed && (tokens.length > 0 || state.activeFilters.size > 0));
     });
+
+    if (elements.filterResultCount) {
+      elements.filterResultCount.textContent = `${matchCount} Treffer`;
+    }
+
+    if (aiAnalysisActive) {
+      const { likely, possible, excluded } = state.matcher.ai.countryGroups;
+      const scopedCount = (candidates) => candidates.filter((candidate) => {
+        const country = countries[candidate.iso3];
+        return country && matchesSearchAndQuickFilters(country, tokens);
+      }).length;
+      const likelyCount = scopedCount(likely);
+      const possibleCount = scopedCount(possible);
+      const excludedCount = scopedCount(excluded);
+      const bestGuessCountry = countries[state.matcher.ai.bestGuessIso];
+      const bestGuessText = bestGuessCountry ? `Bester Tipp: ${bestGuessCountry.name} · ` : "";
+      const baseFilterText = [];
+      if (state.searchQuery.trim()) baseFilterText.push(`Suche „${state.searchQuery.trim()}“`);
+      if (state.activeFilters.size) baseFilterText.push(`${state.activeFilters.size} aktive Filter`);
+      if (matcherCriteriaCount) baseFilterText.push(`${matcherCriteriaCount} Merkmalsfilter`);
+      const intersection = baseFilterText.length ? `${matchCount} sichtbare KI-Treffer für ${baseFilterText.join(" · ")} · ` : "";
+      elements.searchSummary.textContent = bestGuessText + intersection
+        + `${likelyCount} ${likelyCount === 1 ? "KI-Kandidat" : "KI-Kandidaten"} · `
+        + `${possibleCount} möglich · ${excludedCount} ausdrücklich ausgeschlossen. `
+        + "Nicht bewertete Länder sind nicht automatisch ausgeschlossen.";
+      return;
+    }
 
     if (
       tokens.length === 0
@@ -740,12 +919,19 @@
       && manualExclusionCount === 0
     ) {
       elements.searchSummary.textContent = `Alle ${countryList.length} Länder und Gebiete werden angezeigt.`;
+    } else if (matcherCriteriaCount > 0 && state.matcher.source === "quick") {
+      const scope = [];
+      if (state.searchQuery.trim()) scope.push(`Suche „${state.searchQuery.trim()}“`);
+      if (state.activeFilters.size) scope.push(`${state.activeFilters.size} weitere Filter`);
+      const scopeText = scope.length ? ` innerhalb ${scope.join(" · ")}` : "";
+      elements.searchSummary.textContent = `${strongQuickMatches} gut belegte ${strongQuickMatches === 1 ? "Übereinstimmung" : "Übereinstimmungen"}${scopeText} · `
+        + `${possibleQuickMatches} weitere Länder bleiben möglich · ${excludedQuickMatches} eher ausgeschlossen.`;
     } else {
       const parts = [];
       if (state.searchQuery.trim()) parts.push(`Suche „${state.searchQuery.trim()}“`);
       if (state.activeFilters.size) parts.push(`${state.activeFilters.size} aktive Filter`);
       if (matcherCriteriaCount) {
-        parts.push(`${matcherCriteriaCount} ${matcherCriteriaCount === 1 ? "Matcher-Merkmal" : "Matcher-Merkmale"}`);
+        parts.push(`${matcherCriteriaCount} ${matcherCriteriaCount === 1 ? "Haupt-Schnellfilter" : "Haupt-Schnellfilter"}`);
       }
       if (manualExclusionCount) {
         parts.push(`${manualExclusionCount} ${manualExclusionCount === 1 ? "manuell ausgeschlossenes Land" : "manuell ausgeschlossene Länder"}`);
@@ -754,53 +940,161 @@
     }
   }
 
-  const matcherInputs = [
-    elements.matcherTraffic,
-    elements.matcherCenterColor,
-    elements.matcherCenterStyle,
-    elements.matcherEdgeColor,
-    elements.matcherEdgeStyle,
-    elements.matcherPlateColor,
-    elements.matcherSurface,
-    elements.matcherStopOnly,
-    elements.matcherStopOther,
-    elements.matcherStopText,
-    elements.matcherWarningSign,
-    elements.matcherPlateLayout,
-    elements.matcherBollard,
-    elements.matcherPole,
-    elements.matcherShoulder,
-    elements.matcherSignBack,
-    elements.matcherCamera,
-  ].filter(Boolean);
-
   function readMatcherCriteria() {
+    const quick = state.matcher.quickCriteria;
     return {
-      traffic: elements.matcherTraffic?.value || "",
-      centerColor: elements.matcherCenterColor?.value || "",
-      centerStyle: elements.matcherCenterStyle?.value || "",
-      edgeColor: elements.matcherEdgeColor?.value || "",
-      edgeStyle: elements.matcherEdgeStyle?.value || "",
-      plateColor: elements.matcherPlateColor?.value || "",
-      surface: elements.matcherSurface?.value || "",
-      stopOnly: Boolean(elements.matcherStopOnly?.checked),
-      stopOther: Boolean(elements.matcherStopOther?.checked),
-      stopText: elements.matcherStopText?.value || "",
-      warningSign: elements.matcherWarningSign?.value || "",
-      plateLayout: elements.matcherPlateLayout?.value || "",
-      bollard: elements.matcherBollard?.value || "",
-      pole: elements.matcherPole?.value || "",
-      shoulder: elements.matcherShoulder?.value || "",
-      signBack: elements.matcherSignBack?.value || "",
-      camera: elements.matcherCamera?.value || "",
+      traffic: "",
+      centerColor: "",
+      centerStyle: "",
+      edgeColor: quick.edgeColor,
+      edgeStyle: "",
+      plateColor: quick.plateColor,
+      surface: "",
+      stopOnly: quick.stopOnly,
+      stopOther: quick.stopOther,
+      stopText: "",
+      warningSign: quick.warningSign,
+      plateLayout: quick.plateLayout,
+      bollard: quick.bollard,
+      pole: quick.pole,
+      shoulder: quick.shoulder,
+      signBack: quick.signBack,
+      camera: quick.camera,
+      roofRack: quick.roofRack,
+      mirrors: quick.mirrors,
+      snorkel: quick.snorkel,
+      equipment: quick.equipment,
+      tape: quick.tape,
+      captureType: quick.captureType,
     };
   }
 
+  function buildAiFilterContext() {
+    const activeFilters = [];
+    const seen = new Set();
+    const add = (key, value) => {
+      const identity = `${key}:${value}`;
+      if (!AI_FILTER_CONTEXT_LABELS[identity] || seen.has(identity)) return;
+      seen.add(identity);
+      activeFilters.push({ key, value });
+    };
+
+    state.activeFilters.forEach((filter) => {
+      const contextFilter = AI_BASE_FILTER_CONTEXT[filter];
+      if (contextFilter) add(contextFilter.key, contextFilter.value);
+    });
+
+    const quick = state.matcher.quickCriteria;
+    if (quick.stopOnly) add("stopSign", "stop-only");
+    if (quick.stopOther) add("stopSign", "other-text");
+    if (quick.edgeColor === "white") add("edgeColor", "white");
+    if (quick.plateColor === "white") add("plateColor", "white");
+    if (quick.roofRack) add("vehicleFeature", "roof-rack");
+    if (quick.mirrors) add("vehicleFeature", "mirrors");
+    if (quick.snorkel) add("vehicleFeature", "snorkel");
+    if (quick.equipment) add("vehicleFeature", "equipment");
+    if (quick.tape) add("vehicleFeature", "tape");
+    if (["motorcycle", "trekker", "boat"].includes(quick.captureType)) {
+      add("captureType", quick.captureType);
+    }
+    ["warningSign", "plateLayout", "bollard", "pole", "shoulder", "signBack", "camera"].forEach((criterion) => {
+      if (quick[criterion]) add(criterion, quick[criterion]);
+    });
+
+    return { version: 1, activeFilters };
+  }
+
+  function displayAiFilterContext(filterContext) {
+    const activeFilters = Array.isArray(filterContext?.activeFilters)
+      ? filterContext.activeFilters
+      : [];
+    return {
+      version: 1,
+      activeFilters: activeFilters.map(({ key, value }) => ({
+        key,
+        value,
+        label: AI_FILTER_CONTEXT_LABELS[`${key}:${value}`] || "",
+      })).filter((filter) => filter.label),
+    };
+  }
+
+  function aiFilterContextSignature(filterContext) {
+    return displayAiFilterContext(filterContext).activeFilters
+      .map(({ key, value }) => `${key}:${value}`)
+      .sort()
+      .join("|");
+  }
+
+  function updateFilterDashboard() {
+    const filterCount = state.activeFilters.size + selectedMatcherCount(readMatcherCriteria());
+    const activeButtons = elements.filterPanel
+      ? Array.from(elements.filterPanel.querySelectorAll('.filter-chip[aria-pressed="true"]'))
+      : [];
+    const labels = activeButtons
+      .map((button) => button.textContent.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    const manualCount = state.matcher.manualExcluded.size;
+    const hasAiResult = Boolean(state.matcher.ai.analysis);
+    const isAiAnalyzing = state.matcher.ai.analyzing;
+
+    if (elements.activeFilterCount) {
+      elements.activeFilterCount.textContent = String(filterCount);
+      elements.activeFilterCount.setAttribute(
+        "aria-label",
+        filterCount === 1 ? "1 aktiver Filter" : `${filterCount} aktive Filter`,
+      );
+    }
+
+    if (elements.activeFilterSummary) {
+      const visibleLabels = labels.slice(0, 4);
+      const hiddenLabelCount = Math.max(0, labels.length - visibleLabels.length);
+      let summary = "Keine Filter aktiv. Ausgewählte Merkmale werden gemeinsam angewendet.";
+      if (filterCount > 0) {
+        summary = `Gemeinsam aktiv: ${visibleLabels.join(" · ")}`;
+        if (hiddenLabelCount) summary += ` · + ${hiddenLabelCount} weitere`;
+      }
+      if (isAiAnalyzing) summary += `${summary.endsWith(".") ? " " : " · "}KI-Analyse läuft.`;
+      else if (hasAiResult) summary += `${summary.endsWith(".") ? " " : " · "}Mit KI-Ergebnis kombiniert.`;
+      if (manualCount) {
+        summary += `${summary.endsWith(".") ? " " : " · "}${manualCount} ${manualCount === 1 ? "Land" : "Länder"} manuell ausgeschlossen.`;
+      }
+      elements.activeFilterSummary.textContent = summary;
+      elements.activeFilterSummary.title = labels.length ? labels.join(" · ") : summary;
+    }
+
+    if (elements.allFilterChip) {
+      elements.allFilterChip.disabled = filterCount === 0 && manualCount === 0 && !hasAiResult && !isAiAnalyzing;
+    }
+
+    elements.filterDashboard?.querySelectorAll("[data-filter-tab]").forEach((tab) => {
+      const panel = elements.filterDashboard.querySelector(`[data-filter-panel="${tab.dataset.filterTab}"]`);
+      const categoryCount = panel?.querySelectorAll('.filter-chip[aria-pressed="true"]').length || 0;
+      const countNode = tab.querySelector("[data-tab-count]");
+      if (countNode) countNode.textContent = String(categoryCount);
+      tab.classList.toggle("has-active", categoryCount > 0);
+    });
+  }
+
   function syncMatcherFilterChips() {
-    const stopOnlyActive = Boolean(elements.matcherStopOnly?.checked);
-    const stopOtherActive = Boolean(elements.matcherStopOther?.checked);
-    const whiteEdgeActive = elements.matcherEdgeColor?.value === "white";
-    const whitePlateActive = elements.matcherPlateColor?.value === "white";
+    const {
+      stopOnly: stopOnlyActive,
+      stopOther: stopOtherActive,
+      edgeColor,
+      plateColor,
+      roofRack,
+      mirrors,
+      snorkel,
+      equipment,
+      tape,
+      captureType,
+    } = state.matcher.quickCriteria;
+    const whiteEdgeActive = edgeColor === "white";
+    const whitePlateActive = plateColor === "white";
+    elements.filters?.querySelectorAll("[data-filter]").forEach((chip) => {
+      const active = state.activeFilters.has(chip.dataset.filter);
+      chip.classList.toggle("active", active);
+      chip.setAttribute("aria-pressed", String(active));
+    });
     elements.stopOnlyFilterChip?.classList.toggle("active", stopOnlyActive);
     elements.stopOnlyFilterChip?.setAttribute("aria-pressed", String(stopOnlyActive));
     elements.stopOtherFilterChip?.classList.toggle("active", stopOtherActive);
@@ -809,14 +1103,122 @@
     elements.whiteEdgeFilterChip?.setAttribute("aria-pressed", String(whiteEdgeActive));
     elements.whitePlateFilterChip?.classList.toggle("active", whitePlateActive);
     elements.whitePlateFilterChip?.setAttribute("aria-pressed", String(whitePlateActive));
-    const allButton = elements.filters?.querySelector('[data-filter="all"]');
-    if (allButton) {
-      const showAll = state.activeFilters.size === 0
-        && !hasMatcherCriteria(readMatcherCriteria())
-        && state.matcher.manualExcluded.size === 0;
-      allButton.classList.toggle("active", showAll);
-      allButton.setAttribute("aria-pressed", String(showAll));
+    [
+      [elements.roofRackFilterChip, roofRack],
+      [elements.mirrorFilterChip, mirrors],
+      [elements.snorkelFilterChip, snorkel],
+      [elements.equipmentFilterChip, equipment],
+      [elements.tapeFilterChip, tape],
+      [elements.motorcycleFilterChip, captureType === "motorcycle"],
+      [elements.trekkerFilterChip, captureType === "trekker"],
+      [elements.boatFilterChip, captureType === "boat"],
+    ].forEach(([chip, active]) => {
+      chip?.classList.toggle("active", active);
+      chip?.setAttribute("aria-pressed", String(active));
+    });
+    elements.filters?.querySelectorAll("[data-quick-criterion]").forEach((chip) => {
+      const active = state.matcher.quickCriteria[chip.dataset.quickCriterion] === chip.dataset.quickValue;
+      chip.classList.toggle("active", active);
+      chip.setAttribute("aria-pressed", String(active));
+    });
+    updateFilterDashboard();
+  }
+
+  function removeBaseFiltersByType(type) {
+    [...state.activeFilters].forEach((filter) => {
+      if (filter.startsWith(`${type}:`)) state.activeFilters.delete(filter);
+    });
+  }
+
+  function applyFilterSelection(button) {
+    if (!button) return false;
+    const quick = state.matcher.quickCriteria;
+    const baseFilter = button.dataset.filter;
+
+    if (baseFilter) {
+      const [type] = baseFilter.split(":");
+      const activating = !state.activeFilters.has(baseFilter);
+      if (activating) {
+        if (["traffic", "center", "edge", "plates", "continent", "language"].includes(type)) {
+          removeBaseFiltersByType(type);
+        }
+        if (type === "edge") quick.edgeColor = "";
+        if (type === "plates") quick.plateColor = "";
+        state.activeFilters.add(baseFilter);
+      } else {
+        state.activeFilters.delete(baseFilter);
+      }
+      return true;
     }
+
+    if (button.hasAttribute("data-matcher-stop-only")) {
+      quick.stopOnly = !quick.stopOnly;
+      if (quick.stopOnly) quick.stopOther = false;
+      return true;
+    }
+    if (button.hasAttribute("data-matcher-stop-other")) {
+      quick.stopOther = !quick.stopOther;
+      if (quick.stopOther) quick.stopOnly = false;
+      return true;
+    }
+    if (button.hasAttribute("data-matcher-edge-white")) {
+      quick.edgeColor = quick.edgeColor === "white" ? "" : "white";
+      if (quick.edgeColor) removeBaseFiltersByType("edge");
+      return true;
+    }
+    if (button.hasAttribute("data-matcher-plate-white")) {
+      quick.plateColor = quick.plateColor === "white" ? "" : "white";
+      if (quick.plateColor) removeBaseFiltersByType("plates");
+      return true;
+    }
+
+    const quickCriterion = button.dataset.quickCriterion;
+    const quickValue = button.dataset.quickValue;
+    if (quickCriterion && Object.hasOwn(quick, quickCriterion) && quickValue) {
+      quick[quickCriterion] = quick[quickCriterion] === quickValue ? "" : quickValue;
+      return true;
+    }
+
+    const captureFeature = button.dataset.captureFeature;
+    if (captureFeature) {
+      const criterionByFeature = {
+        "roof-rack": "roofRack",
+        mirrors: "mirrors",
+        snorkel: "snorkel",
+        equipment: "equipment",
+        tape: "tape",
+      };
+      const criterion = criterionByFeature[captureFeature];
+      if (!criterion) return false;
+      quick[criterion] = !quick[criterion];
+      if (quick[criterion]) quick.captureType = "";
+      return true;
+    }
+
+    const captureType = button.dataset.captureType;
+    if (captureType) {
+      const activating = quick.captureType !== captureType;
+      quick.captureType = activating ? captureType : "";
+      if (activating) {
+        quick.roofRack = false;
+        quick.mirrors = false;
+        quick.snorkel = false;
+        quick.equipment = false;
+        quick.tape = false;
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  function clearAllFilters() {
+    state.activeFilters.clear();
+    state.matcher.quickCriteria = createEmptyQuickCriteria();
+    state.matcher.manualExcluded.clear();
+    clearAiAnalysisResult();
+    recomputeMatcher();
+    refreshMatcherResultViews();
   }
 
   const evidenceCriterionSpecs = [
@@ -858,6 +1260,7 @@
     shoulder: "Straßenrand / Schulter",
     signBack: "Schildrückseite",
     camera: "Kamera-Hinweis",
+    captureMeta: "Google-Car / Aufnahmemeta",
     stopSign: "Stoppschild-Text",
     roadMarking: "Straßenmarkierung",
   };
@@ -869,8 +1272,111 @@
     unknown: "unbekannt",
   };
 
+  const captureFeatureCriteria = [
+    ["roofRack", "roof-rack", "Dachträger"],
+    ["mirrors", "mirrors", "sichtbare Seitenspiegel"],
+    ["snorkel", "snorkel", "Schnorchel"],
+    ["equipment", "equipment", "Zelt, Gepäck oder Ersatzrad"],
+    ["tape", "tape", "Klebeband oder schwarze Streifen"],
+  ];
+
+  const captureFeatureLabels = Object.freeze({
+    "roof-rack": "Dachträger",
+    mirrors: "sichtbare Seitenspiegel",
+    snorkel: "Schnorchel",
+    equipment: "Zelt / Gepäck / Ersatzrad",
+    tape: "Klebeband / schwarze Streifen",
+  });
+
+  const captureTypeLabels = Object.freeze({
+    car: "Google-Auto",
+    motorcycle: "Motorradkamera",
+    trekker: "Trekker / Fußkamera",
+    boat: "Bootskamera",
+  });
+
+  const captureTypicalityLabels = Object.freeze({
+    typical: "typische Variante",
+    variant: "regionale oder generationsabhängige Variante",
+    rare: "seltene Sonderabdeckung",
+  });
+
   function evidenceValueLabel(value) {
     return evidenceValueLabels[value] || value;
+  }
+
+  function selectedCaptureFeatures(criteria) {
+    return captureFeatureCriteria
+      .filter(([criterion]) => Boolean(criteria[criterion]))
+      .map(([, value]) => value);
+  }
+
+  function captureVariantDescription(variant) {
+    const parts = [captureTypeLabels[variant.captureType] || variant.captureType || "Aufnahme"];
+    if (variant.features?.length) {
+      parts.push(variant.features.map((feature) => captureFeatureLabels[feature] || feature).join(" + "));
+    }
+    return parts.join(" · ");
+  }
+
+  function evaluateCaptureMeta(country, criteria) {
+    const features = selectedCaptureFeatures(criteria);
+    const captureType = criteria.captureType || "";
+    const selected = features.length + Number(Boolean(captureType));
+    const outcome = {
+      selected,
+      reliableMatches: 0,
+      score: 0,
+      uncertain: false,
+      reasons: [],
+      sources: new Set(),
+      updatedAt: country.captureMeta?.updatedAt || "",
+    };
+    if (!selected) return outcome;
+
+    const variants = Array.isArray(country.captureMeta?.variants) ? country.captureMeta.variants : [];
+    if (!variants.length) {
+      outcome.uncertain = true;
+      outcome.reasons.push("Google-Car- und Aufnahmemeta ist für dieses Land noch nicht sicher erfasst");
+      return outcome;
+    }
+
+    const relevantVariants = variants.filter((variant) => {
+      if (captureType) return variant.captureType === captureType;
+      if (features.length) return variant.captureType === "car";
+      return true;
+    });
+    const exactVariants = relevantVariants.filter((variant) => {
+      const documentedFeatures = new Set(variant.features || []);
+      return features.every((feature) => documentedFeatures.has(feature));
+    });
+
+    if (exactVariants.length) {
+      const rank = { high: 3, medium: 2, low: 1 };
+      const typicalityRank = { typical: 3, variant: 2, rare: 1 };
+      const best = [...exactVariants].sort((left, right) =>
+        (rank[right.confidence] || 0) - (rank[left.confidence] || 0)
+        || (typicalityRank[right.typicality] || 0) - (typicalityRank[left.typicality] || 0))[0];
+      const verified = best.confidence === "high" && best.sources?.length > 0;
+      const typicalityScore = best.typicality === "typical" ? 18 : best.typicality === "variant" ? 11 : 6;
+      outcome.score += selected * 18 + typicalityScore;
+      best.sources?.forEach((source) => outcome.sources.add(source));
+      if (verified) outcome.reliableMatches = selected;
+      else outcome.uncertain = true;
+      outcome.reasons.push(`${captureVariantDescription(best)} ist dokumentiert (${captureTypicalityLabels[best.typicality] || "Abdeckungsvariante"})`);
+      if (best.scope) outcome.reasons.push(best.scope);
+      return outcome;
+    }
+
+    const documentedFeatures = new Set(relevantVariants.flatMap((variant) => variant.features || []));
+    const partialFeatureCount = features.filter((feature) => documentedFeatures.has(feature)).length;
+    const typeDocumented = captureType && variants.some((variant) => variant.captureType === captureType);
+    outcome.score += partialFeatureCount * 3 + (typeDocumented ? 3 : 0);
+    outcome.uncertain = true;
+    outcome.reasons.push(partialFeatureCount || typeDocumented
+      ? "Einzelne Fahrzeugmerkmale sind belegt, diese genaue Kombination jedoch nicht"
+      : "Diese Fahrzeug- oder Aufnahmevariante ist hier noch nicht dokumentiert");
+    return outcome;
   }
 
   function evaluateVisualEvidence(country, criteria) {
@@ -1105,6 +1611,14 @@
   function evaluateRoadCriteria(country, criteria) {
     const count = roadCriteriaCount(criteria);
     if (!count) return null;
+    const variableLines = country.roadLineFilterVariants;
+    const variableColorMatch = variableLines
+      && !criteria.centerStyle
+      && !criteria.edgeStyle
+      && !criteria.surface
+      && (!criteria.centerColor || variableLines.centerColors?.includes(criteria.centerColor))
+      && (!criteria.edgeColor || variableLines.edgeColors?.includes(criteria.edgeColor));
+    if (variableColorMatch) return { outcome: "match", count, reliable: false };
     const variants = countryRoadVariants(country);
     if (!variants.length) return { outcome: "unknown", count, reliable: false };
     const comparisons = variants.map((variant) => compareRoadVariant(variant, criteria));
@@ -1281,6 +1795,16 @@
       if (visualResult.excludedReason) excludedReason = visualResult.excludedReason;
     }
 
+    if (!excludedReason) {
+      const captureResult = evaluateCaptureMeta(country, criteria);
+      score += captureResult.score;
+      reliableMatches += captureResult.reliableMatches;
+      uncertain ||= captureResult.uncertain;
+      captureResult.reasons.forEach((reason) => reasons.push(reason));
+      captureResult.sources.forEach((source) => evidenceSources.add(source));
+      evidenceUpdatedAt = captureResult.updatedAt || evidenceUpdatedAt;
+    }
+
     if (state.matcher.manualExcluded.has(country.iso3)) {
       excludedReason = "Manuell ausgeschlossen";
     }
@@ -1322,6 +1846,7 @@
   }
 
   function renderMatcherCandidates(criteria) {
+    if (!elements.matcherCandidates) return;
     if (!state.matcher.active || !hasMatcherCriteria(criteria)) {
       elements.matcherCandidates.innerHTML = '<p class="matcher-empty-result">Wähle oben Merkmale aus, um Länder ein- und auszuschließen.</p>';
       return;
@@ -1374,6 +1899,7 @@
   }
 
   function renderMatcherExcluded() {
+    if (!elements.matcherExcludedSummary) return;
     const excluded = countryList
       .map((country) => ({ country, result: state.matcher.results.get(country.iso3) }))
       .filter((entry) => entry.result?.status === "excluded");
@@ -1410,6 +1936,7 @@
   }
 
   function renderMatcherSummary(criteria) {
+    if (!elements.matcherSummary) return;
     if (!state.matcher.active) {
       elements.matcherSummary.textContent = "Noch keine Merkmale ausgewählt. Alle Länder bleiben möglich.";
       return;
@@ -1435,6 +1962,10 @@
 
   function refreshMatcherResultViews() {
     if (!state.matcher.active) return;
+    if (state.matcher.source === "ai") {
+      if (state.matcher.ai.analysis) renderAiCountryAnalysis(state.matcher.ai.analysis);
+      return;
+    }
     const criteria = readMatcherCriteria();
     renderMatcherSummary(criteria);
     renderMatcherCandidates(criteria);
@@ -1505,10 +2036,17 @@
     }
   }
 
-  function recomputeMatcher() {
+  function recomputeMatcher({ preserveAi = false } = {}) {
     const criteria = readMatcherCriteria();
     syncMatcherFilterChips();
+    if (preserveAi && state.matcher.source === "ai" && state.matcher.ai.analysis) {
+      drawRoadLineOverlays();
+      updateMapMatches();
+      renderAiCountryAnalysis(state.matcher.ai.analysis);
+      return;
+    }
     state.matcher.active = hasMatcherCriteria(criteria) || state.matcher.manualExcluded.size > 0;
+    state.matcher.source = state.matcher.active ? "quick" : null;
     state.matcher.results.clear();
     state.matcher.roadCandidates.clear();
     if (state.matcher.active) {
@@ -1527,10 +2065,6 @@
     }
     drawRoadLineOverlays();
     updateMapMatches();
-    updateMatcherRoadPreview(criteria);
-    renderMatcherSummary(criteria);
-    renderMatcherCandidates(criteria);
-    renderMatcherExcluded();
   }
 
   function setAiHelperStatus(status, message) {
@@ -1564,13 +2098,46 @@
     elements.analyzeScreenshotButton.textContent = state.matcher.ai.analyzing
       ? "KI analysiert …"
       : "Mit KI analysieren";
+    if (elements.resetAiAnalysisButton) {
+      elements.resetAiAnalysisButton.disabled = !state.matcher.ai.analysis || state.matcher.ai.analyzing;
+    }
+  }
+
+  function cancelAiAnalysis() {
+    const wasAnalyzing = state.matcher.ai.analyzing;
+    state.matcher.ai.analysisRequestId += 1;
+    state.matcher.ai.controller?.abort();
+    state.matcher.ai.controller = null;
+    state.matcher.ai.analyzing = false;
+    if (wasAnalyzing) {
+      setAiHelperStatus("checking", "Analyse abgebrochen · Helfer wird geprüft …");
+      void checkAiHelperHealth();
+    }
   }
 
   function clearAiAnalysisResult() {
-    if (!elements.aiAnalysisResult) return;
-    elements.aiAnalysisResult.replaceChildren();
-    elements.aiAnalysisResult.hidden = true;
-    delete elements.aiAnalysisResult.dataset.state;
+    if (state.matcher.ai.analyzing) cancelAiAnalysis();
+    const wasAiActive = state.matcher.source === "ai";
+    state.matcher.ai.analysis = null;
+    state.matcher.ai.countryGroups = { likely: [], possible: [], excluded: [] };
+    state.matcher.ai.imageClues = [];
+    state.matcher.ai.bestGuessIso = "";
+    state.matcher.ai.filterContext = { version: 1, activeFilters: [] };
+    if (wasAiActive) {
+      state.matcher.results.clear();
+      state.matcher.roadCandidates.clear();
+      state.matcher.active = false;
+      state.matcher.source = null;
+    }
+    if (elements.aiAnalysisResult) {
+      elements.aiAnalysisResult.replaceChildren();
+      elements.aiAnalysisResult.hidden = true;
+      delete elements.aiAnalysisResult.dataset.state;
+    }
+    if (wasAiActive) recomputeMatcher();
+    else updateMapMatches();
+    updateAiAnalyzeButton();
+    syncMatcherFilterChips();
   }
 
   function showAiAnalysisMessage(status, title, message) {
@@ -1658,181 +2225,459 @@
     }
   }
 
-  function aiValueLabel(key, value) {
-    const labels = {
-      traffic: { left: "Linksverkehr", right: "Rechtsverkehr" },
-      centerColor: { white: "weiß", yellow: "gelb", green: "grünes Mittelband", none: "keine" },
-      centerStyle: { dashed: "gestrichelt", solid: "durchgezogen", "double-solid": "doppelt durchgezogen", "solid-dashed": "durchgezogen + gestrichelt", none: "keine" },
-      edgeColor: { white: "weiß", yellow: "gelb", none: "keine" },
-      edgeStyle: { dashed: "gestrichelt", solid: "durchgezogen", "double-solid": "doppelt durchgezogen", "solid-dashed": "durchgezogen + gestrichelt", none: "keine" },
-      plateColor: { yellow: "gelb", white: "weiß", dark: "dunkel" },
-      surface: { asphalt: "Asphalt", concrete: "Beton", gravel: "Schotter", unpaved: "unbefestigt" },
-      stopText: { alto: "ALTO", pare: "PARE", berhenti: "BERHENTI", "tomare-stop": "止まれ oder 止まれ + STOP" },
-      warningSign: { "diamond-yellow": "gelbe Raute", "triangle-white": "weißes Dreieck mit rotem Rand", "triangle-yellow": "gelbes Dreieck mit rotem Rand" },
-      plateLayout: { "white-white": "weiß / weiß", "white-yellow": "weiß / gelb", "yellow-yellow": "gelb / gelb", "dark-dark": "dunkel / dunkel" },
-      bollard: { "white-black": "weiß mit schwarzem Feld", "painted-black-white": "schwarz-weiß bemalt", "black-yellow": "schwarz-gelb" },
-      pole: { wood: "Holz", concrete: "Beton" },
-      shoulder: { paved: "befestigt", gravel: "Kies oder Sand", none: "keine", drainage: "offene Betonrinne" },
-      signBack: { dark: "dunkel oder schwarz" },
-      camera: { low: "auffällig niedrig" },
-    };
-    if (value === true) return "erkannt";
-    return labels[key]?.[value] || String(value ?? "unbekannt");
+  function cleanAiText(value, maxLength = 500) {
+    if (typeof value !== "string") return "";
+    return value.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
   }
 
-  function parseAiObservations(rawObservations) {
-    const observations = rawObservations && typeof rawObservations === "object" && !Array.isArray(rawObservations)
-      ? rawObservations
-      : {};
-    const parsed = [];
-    let unknownCount = 0;
-    Object.entries(observations).forEach(([key, raw]) => {
-      const observation = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-      if (observation.value === "" || observation.value === null || observation.value === undefined || observation.value === false) return;
-      const rule = Object.prototype.hasOwnProperty.call(AI_OBSERVATION_RULES, key)
-        ? AI_OBSERVATION_RULES[key]
-        : null;
-      if (!rule) {
-        unknownCount += 1;
-        return;
+  function cleanAiTextList(value, limit = 5, maxLength = 320) {
+    const source = Array.isArray(value) ? value : (typeof value === "string" ? [value] : []);
+    return [...new Set(source.map((item) => cleanAiText(item, maxLength)).filter(Boolean))].slice(0, limit);
+  }
+
+  function parseAiConfidence(value) {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+  }
+
+  function parseAiCountryCandidate(raw, sourceGroup, visibleEvidenceCategories) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    let iso3 = cleanAiText(raw.iso3, 8).toUpperCase();
+    if (iso3 === "XKX") iso3 = "KOS";
+    if (!/^[A-Z]{3}$/.test(iso3) || !countries[iso3]) return null;
+    const confidence = parseAiConfidence(raw.confidence);
+    if (confidence === null) return null;
+    const reasons = cleanAiTextList(raw.reasons);
+    const evidence = cleanAiTextList(raw.evidence);
+    const evidenceCategories = cleanAiTextList(raw.evidenceCategories, 14, 40)
+      .map((category) => category.toLowerCase())
+      .filter((category) => AI_CLUE_LABELS[category] && visibleEvidenceCategories.has(category));
+    if (!reasons.length && !evidence.length) return null;
+
+    let group = sourceGroup;
+    let downgraded = false;
+    if (sourceGroup === "likely" && confidence < AI_LIKELY_CONFIDENCE) {
+      group = "possible";
+      downgraded = true;
+    }
+    if (sourceGroup === "excluded" && confidence < AI_EXCLUDED_CONFIDENCE) {
+      group = "possible";
+      downgraded = true;
+    }
+    const hasRobustVisibleExclusion = evidenceCategories.some((category) => AI_ROBUST_EXCLUSION_CATEGORIES.has(category));
+    if (sourceGroup === "excluded" && !hasRobustVisibleExclusion) {
+      group = "possible";
+      downgraded = true;
+    }
+    if (downgraded) {
+      if (sourceGroup === "excluded" && confidence < AI_EXCLUDED_CONFIDENCE) {
+        reasons.push("Der vorgeschlagene Ausschluss war zu unsicher und bleibt deshalb nur eine offene Möglichkeit.");
+      } else if (sourceGroup === "excluded") {
+        reasons.push("Ohne robuste sichtbare Widerspruchskategorie bleibt dieses Land möglich.");
+      } else {
+        reasons.push("Die Sicherheit war für einen starken Kandidaten zu niedrig.");
       }
-      const confidence = Number(observation.confidence);
-      const hasValidConfidence = Number.isFinite(confidence) && confidence >= 0 && confidence <= 1;
-      const hasValidValue = rule.values.includes(observation.value);
-      parsed.push({
-        key,
-        rule,
-        value: observation.value,
-        confidence: hasValidConfidence ? confidence : null,
-        evidence: typeof observation.evidence === "string" ? observation.evidence.trim().slice(0, 500) : "",
-        valid: hasValidConfidence && hasValidValue,
-        reason: !hasValidValue
-          ? "Der erkannte Wert wird vom Matcher nicht unterstützt."
-          : (!hasValidConfidence ? "Die KI hat keine gültige Sicherheit angegeben." : ""),
+    }
+    return { iso3, confidence, reasons: reasons.slice(0, 6), evidence, evidenceCategories, group, sourceGroup };
+  }
+
+  function parseAiCountryAnalysis(payload, filterContext = { version: 1, activeFilters: [] }) {
+    const raw = payload?.countryAnalysis;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const warnings = cleanAiTextList(payload.warnings, 8, 400);
+    const requestedFilterContext = displayAiFilterContext(filterContext);
+    const appliedFilterContext = displayAiFilterContext(payload.appliedFilterContext);
+    const requestedFilterSignature = aiFilterContextSignature(requestedFilterContext);
+    const appliedFilterSignature = aiFilterContextSignature(appliedFilterContext);
+    const filterContextApplied = !requestedFilterSignature || requestedFilterSignature === appliedFilterSignature;
+    if (requestedFilterSignature && !filterContextApplied) {
+      warnings.push("Der lokale Helfer hat die ausgewählten Filter nicht bestätigt. Lade die aktuelle Helfer-Version herunter und analysiere das Bild erneut.");
+    }
+    const imageClues = [];
+    const clueKeys = new Set();
+    const rawClues = Array.isArray(raw.imageClues) ? raw.imageClues : [];
+    rawClues.slice(0, 40).forEach((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return;
+      const category = cleanAiText(item.category, 40).toLowerCase();
+      const observation = cleanAiText(item.observation, 420);
+      const confidence = parseAiConfidence(item.confidence);
+      if (!AI_CLUE_LABELS[category] || !observation || confidence === null) return;
+      const key = `${category}\n${observation.toLocaleLowerCase("de")}`;
+      if (clueKeys.has(key)) return;
+      clueKeys.add(key);
+      imageClues.push({ category, observation, confidence });
+    });
+    const visibleEvidenceCategories = new Set(imageClues.map((clue) => clue.category));
+    let bestGuess = parseAiCountryCandidate(raw.bestGuess, "possible", visibleEvidenceCategories);
+    if (raw.bestGuess && !bestGuess) {
+      warnings.push("Der beste Ländertipp des Helfers war ungültig und wurde sicher ignoriert.");
+    }
+
+    const candidatesByIso = new Map();
+    let ignoredCountries = 0;
+    (["likely", "possible", "excluded"]).forEach((sourceGroup) => {
+      const list = Array.isArray(raw[sourceGroup]) ? raw[sourceGroup] : [];
+      list.slice(0, 40).forEach((item) => {
+        const candidate = parseAiCountryCandidate(item, sourceGroup, visibleEvidenceCategories);
+        if (!candidate) {
+          ignoredCountries += 1;
+          return;
+        }
+        const existing = candidatesByIso.get(candidate.iso3);
+        if (!existing) {
+          candidatesByIso.set(candidate.iso3, candidate);
+          return;
+        }
+        const mergedReasons = [...new Set([...existing.reasons, ...candidate.reasons])].slice(0, 6);
+        const mergedEvidence = [...new Set([...existing.evidence, ...candidate.evidence])].slice(0, 6);
+        const mergedEvidenceCategories = [...new Set([...existing.evidenceCategories, ...candidate.evidenceCategories])].slice(0, 14);
+        if (existing.sourceGroup === candidate.sourceGroup) {
+          candidatesByIso.set(candidate.iso3, {
+            ...(candidate.confidence > existing.confidence ? candidate : existing),
+            confidence: Math.max(existing.confidence, candidate.confidence),
+            reasons: mergedReasons,
+            evidence: mergedEvidence,
+            evidenceCategories: mergedEvidenceCategories,
+          });
+          return;
+        }
+        candidatesByIso.set(candidate.iso3, {
+          ...(candidate.confidence > existing.confidence ? candidate : existing),
+          confidence: Math.max(existing.confidence, candidate.confidence),
+          group: "possible",
+          reasons: [...mergedReasons, "Die KI hat dieses Land widersprüchlich eingeordnet; es bleibt deshalb nur möglich."].slice(0, 7),
+          evidence: mergedEvidence,
+          evidenceCategories: mergedEvidenceCategories,
+          sourceGroup: "possible",
+        });
       });
     });
-    return { parsed, unknownCount };
-  }
 
-  function applyAiObservations(rawObservations) {
-    const { parsed, unknownCount } = parseAiObservations(rawObservations);
-    const applicable = parsed.filter((item) => item.valid && item.confidence >= AI_CONFIDENCE_THRESHOLD);
-    const review = parsed.filter((item) => !item.valid || item.confidence < AI_CONFIDENCE_THRESHOLD);
-    const localWarnings = [];
-    const stopOnly = applicable.find((item) => item.key === "stopOnly");
-    const stopOthers = applicable.filter((item) => item.key === "stopOther" || item.key === "stopText");
-
-    if (stopOnly && stopOthers.length) {
-      const strongestOther = stopOthers.reduce((strongest, item) => item.confidence > strongest.confidence ? item : strongest);
-      const losingKeys = stopOnly.confidence === strongestOther.confidence
-        ? new Set(["stopOnly", "stopOther", "stopText"])
-        : (stopOnly.confidence > strongestOther.confidence
-          ? new Set(["stopOther", "stopText"])
-          : new Set(["stopOnly"]));
-      for (let index = applicable.length - 1; index >= 0; index -= 1) {
-        if (!losingKeys.has(applicable[index].key)) continue;
-        review.push({ ...applicable[index], reason: "Widersprüchliche Stoppschild-Erkennung – bitte selbst prüfen." });
-        applicable.splice(index, 1);
+    if (bestGuess) {
+      const existing = candidatesByIso.get(bestGuess.iso3);
+      const mergedReasons = [...new Set([...(existing?.reasons || []), ...bestGuess.reasons])].slice(0, 7);
+      const mergedEvidence = [...new Set([...(existing?.evidence || []), ...bestGuess.evidence])].slice(0, 6);
+      const mergedEvidenceCategories = [...new Set([
+        ...(existing?.evidenceCategories || []),
+        ...bestGuess.evidenceCategories,
+      ])].slice(0, 14);
+      const contradicted = existing?.group === "excluded";
+      const group = contradicted
+        ? "possible"
+        : (Math.max(existing?.confidence || 0, bestGuess.confidence) >= AI_LIKELY_CONFIDENCE ? "likely" : "possible");
+      bestGuess = {
+        ...(existing || bestGuess),
+        iso3: bestGuess.iso3,
+        confidence: Math.max(existing?.confidence || 0, bestGuess.confidence),
+        reasons: contradicted
+          ? [...mergedReasons, "Der beste Tipp war zugleich als ausgeschlossen markiert und bleibt deshalb nur eine unsichere Möglichkeit."].slice(0, 7)
+          : mergedReasons,
+        evidence: mergedEvidence,
+        evidenceCategories: mergedEvidenceCategories,
+        group,
+        sourceGroup: group,
+      };
+      if (contradicted) warnings.push("Ein widersprüchlich ausgeschlossener bester Tipp wurde zu „möglich“ zurückgestuft.");
+      candidatesByIso.set(bestGuess.iso3, bestGuess);
+    } else {
+      const fallbackCandidates = [...candidatesByIso.values()]
+        .filter((candidate) => candidate.group !== "excluded")
+        .sort((left, right) => right.confidence - left.confidence);
+      if (!fallbackCandidates.length) {
+        const excludedFallback = [...candidatesByIso.values()]
+          .sort((left, right) => right.confidence - left.confidence)[0];
+        if (excludedFallback) {
+          bestGuess = {
+            ...excludedFallback,
+            group: "possible",
+            sourceGroup: "possible",
+            reasons: [...excludedFallback.reasons, "Mangels positiver Kandidaten ist dies nur der am wenigsten widersprüchliche Tipp."].slice(0, 7),
+          };
+          candidatesByIso.set(bestGuess.iso3, bestGuess);
+        }
+      } else {
+        [bestGuess] = fallbackCandidates;
       }
-      localWarnings.push("Die Stoppschild-Erkennung war widersprüchlich. Es wurde höchstens die eindeutig sicherere Variante übernommen.");
+      if (bestGuess) warnings.push("Der Helfer lieferte keinen eigenen besten Tipp; er wurde aus den Kandidaten abgeleitet.");
     }
 
-    const applied = [];
-    applicable.forEach((item) => {
-      if (["stopOnly", "stopOther", "stopText"].includes(item.key)) return;
-      const input = elements[item.rule.element];
-      if (!input) return;
-      input.value = item.value;
-      applied.push(item);
+    if (!bestGuess) return null;
+
+    const countryGroups = { likely: [], possible: [], excluded: [] };
+    candidatesByIso.forEach((candidate) => countryGroups[candidate.group].push(candidate));
+    Object.keys(countryGroups).forEach((group) => {
+      countryGroups[group] = countryGroups[group]
+        .sort((left, right) => right.confidence - left.confidence
+          || countries[left.iso3].name.localeCompare(countries[right.iso3].name, "de"))
+        .slice(0, AI_COUNTRY_LIMITS[group]);
     });
-
-    const acceptedStopOnly = applicable.find((item) => item.key === "stopOnly");
-    const acceptedStopOther = applicable.find((item) => item.key === "stopOther");
-    const acceptedStopText = applicable.find((item) => item.key === "stopText");
-    if (acceptedStopOnly) {
-      elements.matcherStopOnly.checked = true;
-      elements.matcherStopOther.checked = false;
-      elements.matcherStopText.value = "";
-      applied.push(acceptedStopOnly);
-    } else if (acceptedStopOther || acceptedStopText) {
-      elements.matcherStopOnly.checked = false;
-      elements.matcherStopOther.checked = true;
-      if (acceptedStopText) elements.matcherStopText.value = acceptedStopText.value;
-      if (acceptedStopOther) applied.push(acceptedStopOther);
-      if (acceptedStopText) applied.push(acceptedStopText);
+    const bestGuessGroup = bestGuess.group === "likely" ? "likely" : "possible";
+    if (!countryGroups[bestGuessGroup].some((candidate) => candidate.iso3 === bestGuess.iso3)) {
+      if (countryGroups[bestGuessGroup].length >= AI_COUNTRY_LIMITS[bestGuessGroup]) {
+        countryGroups[bestGuessGroup].pop();
+      }
+      countryGroups[bestGuessGroup].push(bestGuess);
+      countryGroups[bestGuessGroup].sort((left, right) => right.confidence - left.confidence
+        || countries[left.iso3].name.localeCompare(countries[right.iso3].name, "de"));
     }
-
-    if (unknownCount) {
-      localWarnings.push(`${unknownCount} nicht unterstützte ${unknownCount === 1 ? "Angabe wurde" : "Angaben wurden"} sicher ignoriert.`);
+    if (ignoredCountries) {
+      warnings.push(`${ignoredCountries} ungültige oder unbekannte Ländereinträge wurden sicher ignoriert.`);
     }
-    recomputeMatcher();
-    return { applied, review, localWarnings };
+    return {
+      summary: cleanAiText(raw.summary, 1000)
+        || cleanAiText(payload.summary, 1000)
+        || "Die KI hat das gesamte sichtbare Straßenbild ausgewertet.",
+      model: cleanAiText(payload.model, 100),
+      imageClues: imageClues.slice(0, 24),
+      bestGuess,
+      filterContext: filterContextApplied ? appliedFilterContext : { version: 1, activeFilters: [] },
+      filterContextApplied,
+      countryGroups,
+      warnings: [...new Set(warnings)].slice(0, 10),
+    };
   }
 
-  function appendAiObservationList(container, title, observations, className) {
-    if (!observations.length) return;
-    const heading = document.createElement("h5");
-    const list = document.createElement("ul");
-    heading.textContent = title;
-    list.className = className;
-    observations.forEach((item) => {
-      const entry = document.createElement("li");
-      const line = document.createElement("div");
-      const label = document.createElement("strong");
+  function applyAiCountryAnalysis(analysis) {
+    state.matcher.results.clear();
+    state.matcher.roadCandidates.clear();
+    state.matcher.ai.analysis = analysis;
+    state.matcher.ai.imageClues = analysis.imageClues;
+    state.matcher.ai.countryGroups = analysis.countryGroups;
+    state.matcher.ai.bestGuessIso = analysis.bestGuess.iso3;
+    state.matcher.ai.filterContext = analysis.filterContext;
+    const statusByGroup = { likely: "match", possible: "possible", excluded: "excluded" };
+    let resultCount = 0;
+    Object.entries(analysis.countryGroups).forEach(([group, candidates]) => {
+      candidates.forEach((candidate) => {
+        resultCount += 1;
+        state.matcher.results.set(candidate.iso3, {
+          status: statusByGroup[group],
+          score: Math.round(candidate.confidence * 100),
+          reasons: candidate.reasons,
+          roadMatched: group !== "excluded",
+          manual: false,
+        });
+        if (group !== "excluded") state.matcher.roadCandidates.add(candidate.iso3);
+      });
+    });
+    state.matcher.active = resultCount > 0;
+    state.matcher.source = resultCount > 0 ? "ai" : null;
+    syncMatcherFilterChips();
+    drawRoadLineOverlays();
+    updateMapMatches();
+    updateAiAnalyzeButton();
+  }
+
+  function appendAiCountryGroup(container, group, title, description) {
+    const allCandidates = state.matcher.ai.countryGroups[group] || [];
+    if (!allCandidates.length) return;
+    const candidates = allCandidates.filter((candidate) => matchesSearchAndQuickFilters(countries[candidate.iso3]));
+    const section = document.createElement("section");
+    const heading = document.createElement("div");
+    const headingText = document.createElement("h4");
+    const count = document.createElement("span");
+    heading.className = "ai-country-group-heading";
+    headingText.textContent = title;
+    count.textContent = candidates.length === allCandidates.length
+      ? String(allCandidates.length)
+      : `${candidates.length} von ${allCandidates.length}`;
+    heading.append(headingText, count);
+    section.className = `ai-country-group is-${group}`;
+    section.append(heading);
+    const intro = document.createElement("p");
+    intro.className = "ai-country-group-copy";
+    intro.textContent = description;
+    section.append(intro);
+
+    const list = document.createElement("div");
+    list.className = "ai-country-list";
+    candidates.forEach((candidate) => {
+      const country = countries[candidate.iso3];
+      const button = document.createElement("button");
+      const topLine = document.createElement("span");
+      const name = document.createElement("strong");
       const confidence = document.createElement("span");
-      const explanation = document.createElement("p");
-      label.textContent = `${item.rule.label}: ${aiValueLabel(item.key, item.value)}`;
-      confidence.textContent = item.confidence === null ? "Sicherheit fehlt" : `${Math.round(item.confidence * 100)} % sicher`;
-      explanation.textContent = item.reason || item.evidence || "Kein zusätzlicher Bildhinweis angegeben.";
-      line.append(label, confidence);
-      entry.append(line, explanation);
-      list.append(entry);
+      const reasons = document.createElement("ul");
+      button.type = "button";
+      button.className = "ai-country-card";
+      button.dataset.selectCountry = candidate.iso3;
+      button.setAttribute("aria-label", `${country.name} öffnen, ${Math.round(candidate.confidence * 100)} Prozent KI-Konfidenz`);
+      topLine.className = "ai-country-card-heading";
+      name.textContent = `${flagEmoji(country.iso2)} ${country.name}`;
+      confidence.textContent = `${Math.round(candidate.confidence * 100)} %`;
+      topLine.append(name, confidence);
+      reasons.className = "ai-country-reasons";
+      candidate.reasons.slice(0, 3).forEach((reason) => {
+        const item = document.createElement("li");
+        item.textContent = reason;
+        reasons.append(item);
+      });
+      if (candidate.evidence.length) {
+        const evidence = document.createElement("small");
+        evidence.textContent = `Sichtbar: ${candidate.evidence.slice(0, 3).join(" · ")}`;
+        button.append(topLine, reasons, evidence);
+      } else {
+        button.append(topLine, reasons);
+      }
+      list.append(button);
     });
-    container.append(heading, list);
+    if (!candidates.length) {
+      const empty = document.createElement("p");
+      empty.className = "ai-filtered-empty";
+      empty.textContent = "Diese KI-Ergebnisse werden durch die aktuelle Suche oder einen Haupt-Schnellfilter ausgeblendet.";
+      list.append(empty);
+    }
+    section.append(list);
+    container.append(section);
   }
 
-  function renderAiAnalysisResult(payload, result) {
-    if (!elements.aiAnalysisResult) return;
+  function appendAiBestGuess(container, analysis) {
+    const bestGuess = analysis.bestGuess;
+    const country = bestGuess ? countries[bestGuess.iso3] : null;
+    if (!bestGuess || !country) return;
+    const confidencePercent = Math.round(bestGuess.confidence * 100);
+    const confidenceLevel = bestGuess.confidence >= AI_LIKELY_CONFIDENCE ? "plausibel" : "unsicher";
+    const section = document.createElement("section");
+    const heading = document.createElement("div");
+    const headingCopy = document.createElement("div");
+    const eyebrow = document.createElement("span");
+    const title = document.createElement("h3");
+    const confidence = document.createElement("span");
+    const button = document.createElement("button");
+    const countryName = document.createElement("strong");
+    const explanation = document.createElement("p");
+    const reasons = document.createElement("ul");
+
+    section.id = "aiBestGuess";
+    section.className = "ai-best-guess";
+    section.dataset.confidence = confidenceLevel;
+    heading.className = "ai-best-guess-heading";
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = "KI-ENDTIPP";
+    title.textContent = "Mein bester Ländertipp";
+    confidence.className = "ai-best-guess-confidence";
+    confidence.textContent = `${confidencePercent} % · ${confidenceLevel}`;
+    headingCopy.append(eyebrow, title);
+    heading.append(headingCopy, confidence);
+
+    button.type = "button";
+    button.className = "ai-best-guess-country";
+    button.dataset.selectCountry = bestGuess.iso3;
+    button.setAttribute("aria-label", `${country.name} als besten KI-Tipp öffnen, ${confidencePercent} Prozent Konfidenz`);
+    countryName.textContent = `${flagEmoji(country.iso2)} ${country.name}`;
+    explanation.textContent = "Die KI muss sich auf genau ein Land festlegen. Dieser Tipp ist auch bei niedriger Konfidenz keine Gewissheit.";
+    button.append(countryName, explanation);
+
+    reasons.className = "ai-best-guess-reasons";
+    bestGuess.reasons.slice(0, 4).forEach((reason) => {
+      const item = document.createElement("li");
+      item.textContent = reason;
+      reasons.append(item);
+    });
+    section.append(heading, button);
+    if (reasons.childElementCount) section.append(reasons);
+    if (bestGuess.evidence.length) {
+      const evidence = document.createElement("small");
+      evidence.className = "ai-best-guess-evidence";
+      evidence.textContent = `Direkt sichtbar: ${bestGuess.evidence.slice(0, 4).join(" · ")}`;
+      section.append(evidence);
+    }
+    container.append(section);
+  }
+
+  function appendAiAppliedFilters(container, analysis) {
+    const activeFilters = analysis.filterContext?.activeFilters || [];
+    if (!analysis.filterContextApplied || !activeFilters.length) return;
+    const section = document.createElement("section");
+    const copy = document.createElement("div");
+    const title = document.createElement("h4");
+    const description = document.createElement("p");
+    const list = document.createElement("div");
+    section.className = "ai-applied-filters";
+    title.textContent = "Von der KI berücksichtigte Filter";
+    description.textContent = "Diese Beobachtungen stammen aus deiner Auswahl. Sie ergänzen das Bild, gelten aber nicht automatisch als sichtbarer Beweis.";
+    copy.append(title, description);
+    list.className = "ai-applied-filter-list";
+    activeFilters.forEach((filter) => {
+      const chip = document.createElement("span");
+      chip.textContent = filter.label;
+      list.append(chip);
+    });
+    section.append(copy, list);
+    container.append(section);
+  }
+
+  function renderAiCountryAnalysis(analysis) {
+    if (!elements.aiAnalysisResult || !analysis) return;
+    const fragment = document.createDocumentFragment();
     const header = document.createElement("div");
     const title = document.createElement("strong");
     const model = document.createElement("span");
     const summary = document.createElement("p");
-    title.textContent = "KI-Analyse abgeschlossen";
-    model.textContent = typeof payload.model === "string" && payload.model.trim()
-      ? `Modell: ${payload.model.trim().slice(0, 100)}`
-      : "Lokale Helfer-Verbindung";
-    summary.textContent = typeof payload.summary === "string" && payload.summary.trim()
-      ? payload.summary.trim().slice(0, 1000)
-      : "Die sichtbaren Merkmale wurden ausgewertet.";
     header.className = "ai-analysis-heading";
+    title.textContent = "KI-Länderanalyse abgeschlossen";
+    model.textContent = analysis.model ? `Modell: ${analysis.model}` : "Lokale Helfer-Verbindung";
     header.append(title, model);
-
-    const fragment = document.createDocumentFragment();
+    summary.className = "ai-analysis-summary";
+    summary.textContent = analysis.summary;
     fragment.append(header, summary);
-    appendAiObservationList(fragment, "Automatisch übernommen", result.applied, "ai-observation-list is-applied");
-    appendAiObservationList(fragment, "Bitte selbst prüfen", result.review, "ai-observation-list is-review");
+    appendAiBestGuess(fragment, analysis);
+    appendAiAppliedFilters(fragment, analysis);
 
-    const responseWarnings = Array.isArray(payload.warnings)
-      ? payload.warnings.filter((warning) => typeof warning === "string" && warning.trim()).slice(0, 10)
-      : [];
-    const warnings = [...result.localWarnings, ...responseWarnings];
-    if (warnings.length) {
+    if (analysis.imageClues.length) {
+      const clueSection = document.createElement("section");
+      const clueTitle = document.createElement("h4");
+      const clueGrid = document.createElement("div");
+      clueTitle.textContent = "Im Gesamtbild erkannte Hinweise";
+      clueGrid.className = "ai-clue-grid";
+      analysis.imageClues.forEach((clue) => {
+        const card = document.createElement("article");
+        const top = document.createElement("div");
+        const label = document.createElement("strong");
+        const confidence = document.createElement("span");
+        const observation = document.createElement("p");
+        card.className = "ai-clue-card";
+        top.className = "ai-clue-card-heading";
+        label.textContent = AI_CLUE_LABELS[clue.category];
+        confidence.textContent = `${Math.round(clue.confidence * 100)} %`;
+        observation.textContent = clue.observation;
+        top.append(label, confidence);
+        card.append(top, observation);
+        clueGrid.append(card);
+      });
+      clueSection.append(clueTitle, clueGrid);
+      fragment.append(clueSection);
+    }
+
+    const groups = document.createElement("div");
+    groups.className = "ai-country-groups";
+    appendAiCountryGroup(groups, "likely", "Wahrscheinlich / einschließen", "Mehrere sichtbare Hinweise sprechen gemeinsam für diese Länder.");
+    appendAiCountryGroup(groups, "possible", "Noch möglich", "Diese Länder bleiben plausible Alternativen oder wurden wegen niedriger Sicherheit zurückgestuft.");
+    appendAiCountryGroup(groups, "excluded", "Ausdrücklich ausgeschlossen", "Nur Länder mit einem konkret genannten, ausreichend sicheren Widerspruch stehen hier.");
+    if (groups.childElementCount) fragment.append(groups);
+
+    const total = Object.values(analysis.countryGroups).reduce((sum, list) => sum + list.length, 0);
+    if (!total) {
+      const empty = document.createElement("p");
+      empty.className = "ai-analysis-empty";
+      empty.textContent = "Die sichtbaren Hinweise reichen für keine belastbare Ländereinordnung. Wähle möglichst ein schärferes Bild mit Straße und Umgebung.";
+      fragment.append(empty);
+    }
+    const unassessed = document.createElement("p");
+    unassessed.className = "ai-unassessed-note";
+    unassessed.textContent = "Nicht bewertete Länder sind nicht automatisch ausgeschlossen. Vegetation oder Klima allein führen nie zu einem harten Ausschluss.";
+    fragment.append(unassessed);
+
+    if (analysis.warnings.length) {
       const warningTitle = document.createElement("h5");
       const warningList = document.createElement("ul");
       warningTitle.textContent = "Hinweise und Unsicherheiten";
       warningList.className = "ai-warning-list";
-      warnings.forEach((warning) => {
+      analysis.warnings.forEach((warning) => {
         const item = document.createElement("li");
-        item.textContent = warning.slice(0, 500);
+        item.textContent = warning;
         warningList.append(item);
       });
       fragment.append(warningTitle, warningList);
-    }
-    if (!result.applied.length) {
-      const notice = document.createElement("p");
-      notice.className = "ai-analysis-empty";
-      notice.textContent = "Kein Merkmal war sicher genug für eine automatische Auswahl. Nutze die Hinweise und prüfe die Felder manuell.";
-      fragment.append(notice);
     }
     elements.aiAnalysisResult.dataset.state = "success";
     elements.aiAnalysisResult.replaceChildren(fragment);
@@ -1862,11 +2707,17 @@
       return;
     }
 
+    clearAiAnalysisResult();
+    const filterContext = buildAiFilterContext();
+    const filterContextSignature = aiFilterContextSignature(filterContext);
     state.matcher.ai.analyzing = true;
+    const requestId = ++state.matcher.ai.analysisRequestId;
     updateAiAnalyzeButton();
+    syncMatcherFilterChips();
     setAiHelperStatus("checking", "KI-Analyse läuft …");
     showAiAnalysisMessage("loading", "Screenshot wird analysiert", "Der lokale Helfer überträgt das Bild jetzt an Groq. Das kann einige Sekunden dauern.");
     const controller = new AbortController();
+    state.matcher.ai.controller = controller;
     let timedOut = false;
     const timeout = window.setTimeout(() => {
       timedOut = true;
@@ -1875,6 +2726,7 @@
 
     try {
       const helperAvailable = await checkAiHelperHealth();
+      if (requestId !== state.matcher.ai.analysisRequestId) return;
       if (!helperAvailable) throw new TypeError("Lokaler KI-Helfer nicht erreichbar");
       setAiHelperStatus("checking", "KI-Analyse läuft …");
       const imageDataUrl = await fileToDataUrl(file);
@@ -1885,19 +2737,36 @@
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ imageDataUrl, fileName: file.name || "strassen-screenshot" }),
+        body: JSON.stringify({
+          imageDataUrl,
+          fileName: file.name || "strassen-screenshot",
+          filterContext,
+        }),
         cache: "no-store",
         signal: controller.signal,
       });
       const payload = await readHelperResponse(response);
       if (!response.ok || payload.ok !== true) throw new Error(helperErrorMessage(response, payload));
-      const result = applyAiObservations(payload.observations);
-      renderAiAnalysisResult(payload, result);
+      if (requestId !== state.matcher.ai.analysisRequestId || elements.roadScreenshot?.files?.[0] !== file) return;
+      if (aiFilterContextSignature(buildAiFilterContext()) !== filterContextSignature) {
+        showAiAnalysisMessage("stale", "Filter wurden geändert", "Starte die KI-Analyse erneut, damit der beste Ländertipp die aktuelle Filterauswahl berücksichtigt.");
+        return;
+      }
+      if (filterContextSignature && aiFilterContextSignature(payload.appliedFilterContext) !== filterContextSignature) {
+        throw new Error("Der lokale Helfer hat die ausgewählten Filter nicht verarbeitet. Lade bitte die aktuelle Helfer-Version herunter.");
+      }
+      const analysis = parseAiCountryAnalysis(payload, filterContext);
+      if (!analysis) {
+        throw new Error("Der lokale Helfer hat keine direkte Länderanalyse geliefert. Lade bitte die aktuelle Helfer-Version herunter.");
+      }
+      applyAiCountryAnalysis(analysis);
+      renderAiCountryAnalysis(analysis);
       setAiHelperStatus("connected", "Lokaler Helfer verbunden · Analyse fertig");
     } catch (error) {
+      if (requestId !== state.matcher.ai.analysisRequestId) return;
       const isNetworkError = error instanceof TypeError;
       const message = timedOut
-        ? "Die Analyse hat länger als 60 Sekunden gedauert und wurde beendet. Versuche es erneut oder verwende den manuellen Matcher."
+        ? "Die Analyse hat länger als 60 Sekunden gedauert und wurde beendet. Versuche es mit einem kleineren Screenshot erneut."
         : (isNetworkError
           ? "Der lokale KI-Helfer ist nicht erreichbar. Starte die heruntergeladene Datei und versuche es erneut."
           : (error.message || "Die KI-Analyse konnte nicht abgeschlossen werden."));
@@ -1905,8 +2774,12 @@
       showAiAnalysisMessage("error", "KI-Analyse fehlgeschlagen", message);
     } finally {
       window.clearTimeout(timeout);
-      state.matcher.ai.analyzing = false;
-      updateAiAnalyzeButton();
+      if (requestId === state.matcher.ai.analysisRequestId) {
+        state.matcher.ai.controller = null;
+        state.matcher.ai.analyzing = false;
+        updateAiAnalyzeButton();
+        syncMatcherFilterChips();
+      }
     }
   }
 
@@ -1957,16 +2830,6 @@
     elements.matcherButton.setAttribute("aria-expanded", String(open));
   }
 
-  function resetMatcher() {
-    matcherInputs.forEach((input) => {
-      if (input.type === "checkbox") input.checked = false;
-      else input.value = "";
-    });
-    state.matcher.manualExcluded.clear();
-    clearMatcherScreenshot();
-    recomputeMatcher();
-  }
-
   function bindMatcher() {
     if (!elements.matcherButton || !elements.roadMatcher) return;
     setMatcherOpen(false);
@@ -1975,64 +2838,11 @@
       setMatcherOpen(open);
       if (open) checkAiHelperHealth();
     });
-    const toggleStopCriterion = (target, opposite) => {
-      if (!target) return;
-      target.checked = !target.checked;
-      if (target.checked && opposite) opposite.checked = false;
-      recomputeMatcher();
-    };
-    elements.stopOnlyFilterChip?.addEventListener("click", () => {
-      toggleStopCriterion(elements.matcherStopOnly, elements.matcherStopOther);
-    });
-    elements.stopOtherFilterChip?.addEventListener("click", () => {
-      toggleStopCriterion(elements.matcherStopOther, elements.matcherStopOnly);
-    });
-    const toggleMatcherSelectValue = (select, value) => {
-      if (!select) return;
-      select.value = select.value === value ? "" : value;
-      recomputeMatcher();
-    };
-    elements.whiteEdgeFilterChip?.addEventListener("click", () => {
-      toggleMatcherSelectValue(elements.matcherEdgeColor, "white");
-    });
-    elements.whitePlateFilterChip?.addEventListener("click", () => {
-      toggleMatcherSelectValue(elements.matcherPlateColor, "white");
-    });
-    matcherInputs.forEach((input) => input.addEventListener("change", () => {
-      if (input === elements.matcherStopOnly && input.checked && elements.matcherStopOther) {
-        elements.matcherStopOther.checked = false;
-      }
-      if (input === elements.matcherStopOther && input.checked && elements.matcherStopOnly) {
-        elements.matcherStopOnly.checked = false;
-      }
-      recomputeMatcher();
-    }));
     elements.roadScreenshot?.addEventListener("change", showMatcherScreenshot);
     elements.removeScreenshot?.addEventListener("click", clearMatcherScreenshot);
     elements.analyzeScreenshotButton?.addEventListener("click", analyzeMatcherScreenshot);
-    elements.matcherReset?.addEventListener("click", resetMatcher);
-    elements.matcherCandidates?.addEventListener("click", (event) => {
-      const exclude = event.target.closest("[data-matcher-exclude]");
-      if (exclude) {
-        state.matcher.manualExcluded.add(exclude.dataset.matcherExclude);
-        recomputeMatcher();
-        return;
-      }
-      const open = event.target.closest("[data-matcher-open]");
-      if (open) selectCountry(open.dataset.matcherOpen);
-    });
-    elements.matcherExcludedSummary?.addEventListener("click", (event) => {
-      const restore = event.target.closest("[data-matcher-restore]");
-      if (restore) {
-        state.matcher.manualExcluded.delete(restore.dataset.matcherRestore);
-        recomputeMatcher();
-        return;
-      }
-      const open = event.target.closest("[data-matcher-open]");
-      if (open) selectCountry(open.dataset.matcherOpen);
-    });
-    updateMatcherRoadPreview(readMatcherCriteria());
-    renderMatcherExcluded();
+    elements.resetAiAnalysisButton?.addEventListener("click", clearAiAnalysisResult);
+    syncMatcherFilterChips();
     updateAiAnalyzeButton();
   }
 
@@ -2123,6 +2933,38 @@
     }).join("")}</div>`;
   }
 
+  function captureMetaSummaryText(country) {
+    const meta = country.captureMeta;
+    if (!meta?.variants?.length) return "Noch kein belastbares Google-Car- oder Aufnahmemeta hinterlegt.";
+    const variants = meta.variants.map((variant) => {
+      const generation = variant.generation ? ` · ${variant.generation}` : "";
+      return `${captureVariantDescription(variant)}${generation} · ${variant.scope}`;
+    }).join("; ");
+    return `${meta.summary} ${variants}`;
+  }
+
+  function renderCaptureMeta(country) {
+    const meta = country.captureMeta;
+    if (!meta?.variants?.length) {
+      return '<p>Noch kein belastbares Google-Car- oder Aufnahmemeta hinterlegt. Fehlende Daten sind kein Ausschluss.</p>';
+    }
+    const variants = meta.variants.map((variant) => {
+      const sources = (variant.sources || [])
+        .filter((source) => /^https:\/\/[^\s]+$/i.test(source))
+        .map((source, index) => `<a href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">Quelle ${index + 1} ↗</a>`)
+        .join(" · ");
+      return `<li>
+        <strong>${escapeHtml(captureVariantDescription(variant))}</strong>
+        <span>${escapeHtml(variant.generation || "Generation nicht festgelegt")} · ${escapeHtml(captureTypicalityLabels[variant.typicality] || variant.typicality)}</span>
+        <small>${escapeHtml(variant.scope)} · ${escapeHtml(variant.note)}</small>
+        ${sources ? `<small class="capture-meta-sources">${sources}</small>` : ""}
+      </li>`;
+    }).join("");
+    return `<p class="capture-meta-summary">${escapeHtml(meta.summary)}</p>
+      <p class="capture-meta-caution">Aufnahmegeneration, Ort und neue Street-View-Abdeckung können das Fahrzeug verändern. Dieses Meta nie allein verwenden.</p>
+      <ul class="capture-meta-list">${variants}</ul>`;
+  }
+
   function renderDataQuality(country) {
     const entries = [];
     const sources = new Set();
@@ -2142,6 +2984,17 @@
       profile.sources?.forEach((source) => sources.add(source));
       entries.push({ key, ...profile });
     });
+    (country.captureMeta?.variants || []).forEach((variant) => {
+      variant.sources?.forEach((source) => sources.add(source));
+      entries.push({
+        key: "captureMeta",
+        values: [captureVariantDescription(variant)],
+        confidence: variant.confidence,
+        scope: variant.scope,
+        note: `${variant.generation ? `${variant.generation} · ` : ""}${variant.note}`,
+        sources: variant.sources || [],
+      });
+    });
     if (country.roadVerification?.status === "cross-checked") {
       country.roadVerification.sources?.forEach((source) => sources.add(source));
       entries.push({
@@ -2159,9 +3012,9 @@
     }
 
     const verifiedCount = entries.filter((entry) => entry.confidence === "high" && entry.sources?.length).length;
-    const updatedAt = country.visualEvidence?.updatedAt || country.stopSign?.updatedAt || "nicht einzeln datiert";
+    const updatedAt = country.captureMeta?.updatedAt || country.visualEvidence?.updatedAt || country.stopSign?.updatedAt || "nicht einzeln datiert";
     const entryMarkup = entries.map((entry) => {
-      const values = entry.key === "stopSign" || entry.key === "roadMarking"
+      const values = entry.key === "stopSign" || entry.key === "roadMarking" || entry.key === "captureMeta"
         ? entry.values.join(" · ")
         : entry.values.map(evidenceValueLabel).join(" · ");
       return '<li><strong>' + escapeHtml(evidenceProfileLabels[entry.key] || entry.key) + '</strong>'
@@ -2193,7 +3046,6 @@
       note: "Daten noch nicht kuratiert",
     }];
     const isFavorite = state.favorites.has(country.iso3);
-    const isCompared = state.compareSelection.includes(country.iso3);
     const roadVerificationStatus = country.roadVerification?.status;
     const roadVerificationText = roadVerificationStatus === "cross-checked"
       ? `Quellengeprüft (${country.roadVerification.sources.length} ${country.roadVerification.sources.length === 1 ? "Quelle" : "Quellen"})`
@@ -2289,6 +3141,10 @@
               <summary>Architektur</summary>
               <div class="details-content"><p>${escapeHtml(country.architecture)}</p></div>
             </details>
+            <details ${country.captureMeta?.variants?.length ? "open" : ""}>
+              <summary>Google-Car und Kamera-Meta</summary>
+              <div class="details-content">${renderCaptureMeta(country)}</div>
+            </details>
             <details>
               <summary>GeoGuessr Meta</summary>
               <div class="details-content"><p>${escapeHtml(country.meta)}</p><p><strong>Hinweis:</strong> Meta kann sich mit neuer Abdeckung ändern und sollte nie einen widersprechenden realen Hinweis überstimmen.</p></div>
@@ -2314,16 +3170,10 @@
             </details>
           </div>
 
-          <div class="panel-actions">
-            <button id="toggleCompareCountry" class="panel-action" type="button">${isCompared ? "Aus Vergleich entfernen" : "Zum Vergleich hinzufügen"}</button>
-            <button id="openCompareFromPanel" class="panel-action" type="button">Vergleich öffnen</button>
-          </div>
         </div>
       </div>`;
 
     document.getElementById("favoriteCountry")?.addEventListener("click", toggleFavorite);
-    document.getElementById("toggleCompareCountry")?.addEventListener("click", () => toggleCompare(country.iso3));
-    document.getElementById("openCompareFromPanel")?.addEventListener("click", () => openComparison(country.iso3));
   }
 
   function selectCountry(iso3, scrollPanel = true, emphasizeMap = true) {
@@ -2344,7 +3194,6 @@
     drawRoadLineOverlays();
     updateMapMatches();
     renderPanel(country);
-    closeBrowser();
     if (scrollPanel) elements.panel.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2356,133 +3205,6 @@
     renderPanel(countries[state.selectedIso]);
     updateMapMatches();
     refreshMatcherResultViews();
-    renderBrowser();
-  }
-
-  function toggleCompare(iso3) {
-    const index = state.compareSelection.indexOf(iso3);
-    if (index >= 0) state.compareSelection.splice(index, 1);
-    else if (state.compareSelection.length < 3) state.compareSelection.push(iso3);
-    else state.compareSelection[2] = iso3;
-    updateCompareCount();
-    if (state.selectedIso) renderPanel(countries[state.selectedIso]);
-  }
-
-  function updateCompareCount() {
-    elements.compareCount.textContent = String(state.compareSelection.length);
-  }
-
-  function populateComparisonSelects() {
-    const options = countryList.map((country) => `<option value="${country.iso3}">${escapeHtml(country.name)}</option>`).join("");
-    elements.compareSelects[0].innerHTML = options;
-    elements.compareSelects[1].innerHTML = options;
-    elements.compareSelects[2].innerHTML = `<option value="">Kein drittes Land</option>${options}`;
-    elements.compareSelects.forEach((select) => select.addEventListener("change", syncComparisonFromSelects));
-  }
-
-  function syncComparisonFromSelects() {
-    state.compareSelection = [...new Set(elements.compareSelects.map((select) => select.value).filter(Boolean))].slice(0, 3);
-    updateCompareCount();
-    renderComparison();
-  }
-
-  function setComparisonSelection(selection) {
-    state.compareSelection = [...new Set(selection.filter((iso3) => countries[iso3]))].slice(0, 3);
-    while (state.compareSelection.length < 2) {
-      const fallback = countryList.find((country) => !state.compareSelection.includes(country.iso3));
-      if (!fallback) break;
-      state.compareSelection.push(fallback.iso3);
-    }
-    elements.compareSelects[0].value = state.compareSelection[0] || countryList[0]?.iso3 || "";
-    elements.compareSelects[1].value = state.compareSelection[1] || countryList[1]?.iso3 || "";
-    elements.compareSelects[2].value = state.compareSelection[2] || "";
-    updateCompareCount();
-    renderComparison();
-  }
-
-  function openComparison(preferredIso) {
-    let selection = [...state.compareSelection];
-    if (preferredIso && !selection.includes(preferredIso)) selection.unshift(preferredIso);
-    if (selection.length < 2 && preferredIso) {
-      const similar = countries[preferredIso]?.confusedWith.find((iso3) => countries[iso3]);
-      if (similar) selection.push(similar);
-    }
-    if (selection.length < 2) selection = ["ZAF", "BWA", "LSO"];
-    setComparisonSelection(selection);
-    elements.modal.hidden = false;
-    document.body.style.overflow = "hidden";
-    elements.compareSelects[0].focus();
-  }
-
-  function closeComparison() {
-    elements.modal.hidden = true;
-    document.body.style.overflow = "";
-  }
-
-  function comparisonCell(country, title, text) {
-    return `<div class="comparison-item"><h4>${escapeHtml(title)}</h4><p>${escapeHtml(text || "Noch nicht zuverlässig erfasst")}</p></div>`;
-  }
-
-  function renderComparison() {
-    elements.comparisonGrid.innerHTML = state.compareSelection.map((iso3) => {
-      const country = countries[iso3];
-      const strongest = [...country.geoGuessrClues].sort((a, b) => importanceOrder[a.importance] - importanceOrder[b.importance]).slice(0, 3).map((clue) => clue.text).join(" · ");
-      const direct = state.compareSelection
-        .filter((otherIso) => otherIso !== iso3)
-        .map((otherIso) => country.distinguish?.[otherIso])
-        .filter(Boolean)
-        .join(" ");
-      return `<article class="comparison-column">
-        <header class="comparison-country-head ${country.traffic}">
-          <span>${flagEmoji(country.iso2)} ${escapeHtml(country.iso3)}</span>
-          <h3>${escapeHtml(country.name)}</h3>
-          <span>${country.traffic === "left" ? "Linksverkehr" : "Rechtsverkehr"}</span>
-        </header>
-        ${comparisonCell(country, "Stärkste Hinweise", strongest)}
-        ${comparisonCell(country, "Straßen", `${country.roads.asphalt}. ${country.roads.shoulders}`)}
-        ${comparisonCell(country, "Markierungen", `Mitte: ${country.roadMarkings.centerColor}. Rand: ${country.roadMarkings.leftEdgeColor} / ${country.roadMarkings.rightEdgeColor}. ${country.roadMarkings.prevalence}.`)}
-        ${comparisonCell(country, "Leitpfosten", country.bollards.description)}
-        ${comparisonCell(country, "Schilder", country.signs.description)}
-        ${comparisonCell(country, "Landschaft", country.landscape)}
-        ${comparisonCell(country, "Strommasten", country.utilityPoles.description)}
-        ${comparisonCell(country, "Kennzeichen", country.licensePlates.description)}
-        ${comparisonCell(country, "GeoGuessr Meta", country.meta)}
-        ${direct ? comparisonCell(country, "Genau unterscheiden", direct) : ""}
-      </article>`;
-    }).join("");
-  }
-
-  function groupCountries(mode) {
-    const grouped = new Map();
-    countryList.forEach((country) => {
-      let key = country.name[0]?.toLocaleUpperCase("de") || "#";
-      if (mode === "continent") key = country.continent;
-      if (mode === "traffic") key = country.traffic === "left" ? "Linksverkehr" : "Rechtsverkehr";
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key).push(country);
-    });
-    return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b, "de"));
-  }
-
-  function renderBrowser() {
-    elements.browserList.innerHTML = groupCountries(state.browserGroup).map(([group, entries]) => `
-      <section class="browser-group">
-        <h3>${escapeHtml(group)}</h3>
-        ${entries.map((country) => `<button class="browser-country" type="button" data-select-country="${country.iso3}">${state.favorites.has(country.iso3) ? "★ " : ""}${escapeHtml(country.name)}<span>${country.traffic === "left" ? "LINKS" : "RECHTS"}</span></button>`).join("")}
-      </section>`).join("");
-  }
-
-  function openBrowser() {
-    elements.browser.classList.add("open");
-    elements.browser.setAttribute("aria-hidden", "false");
-    elements.browserButton.setAttribute("aria-expanded", "true");
-    renderBrowser();
-  }
-
-  function closeBrowser() {
-    elements.browser.classList.remove("open");
-    elements.browser.setAttribute("aria-hidden", "true");
-    elements.browserButton.setAttribute("aria-expanded", "false");
   }
 
   function dismissUpdateNotice() {
@@ -2627,6 +3349,25 @@
     document.getElementById("resetZoom").addEventListener("click", resetZoom);
   }
 
+  function selectFilterTab(tabKey, moveFocus = false) {
+    const tabs = Array.from(elements.filterDashboard?.querySelectorAll("[data-filter-tab]") || []);
+    const panels = Array.from(elements.filterDashboard?.querySelectorAll("[data-filter-panel]") || []);
+    const selectedTab = tabs.find((tab) => tab.dataset.filterTab === tabKey) || tabs[0];
+    if (!selectedTab) return;
+    tabs.forEach((tab) => {
+      const active = tab === selectedTab;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", String(active));
+      tab.tabIndex = active ? 0 : -1;
+    });
+    panels.forEach((panel) => {
+      const active = panel.dataset.filterPanel === selectedTab.dataset.filterTab;
+      panel.hidden = !active;
+      panel.classList.toggle("active", active);
+    });
+    if (moveFocus) selectedTab.focus();
+  }
+
   function bindInterface() {
     elements.search.addEventListener("input", () => {
       state.searchQuery = elements.search.value;
@@ -2634,51 +3375,48 @@
       refreshMatcherResultViews();
     });
 
-    elements.filters.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-filter]");
-      if (!button) return;
-      const filter = button.dataset.filter;
-      if (filter === "all") {
-        state.activeFilters.clear();
-        const matcherWasActive = hasMatcherCriteria(readMatcherCriteria()) || state.matcher.manualExcluded.size > 0;
-        matcherInputs.forEach((input) => {
-          if (input.type === "checkbox") input.checked = false;
-          else input.value = "";
-        });
-        state.matcher.manualExcluded.clear();
-        elements.filters.querySelectorAll(".filter-chip").forEach((chip) => {
-          const isAll = chip.dataset.filter === "all";
-          chip.classList.toggle("active", isAll);
-          chip.setAttribute("aria-pressed", String(isAll));
-        });
-        if (matcherWasActive) recomputeMatcher();
-      } else {
-        if (state.activeFilters.has(filter)) state.activeFilters.delete(filter);
-        else state.activeFilters.add(filter);
-        button.classList.toggle("active", state.activeFilters.has(filter));
-        button.setAttribute("aria-pressed", String(state.activeFilters.has(filter)));
-        const allButton = elements.filters.querySelector('[data-filter="all"]');
-        const showAll = state.activeFilters.size === 0
-          && !hasMatcherCriteria(readMatcherCriteria())
-          && state.matcher.manualExcluded.size === 0;
-        allButton.classList.toggle("active", showAll);
-        allButton.setAttribute("aria-pressed", String(showAll));
+    selectFilterTab("basis");
+    elements.filterDashboard?.addEventListener("click", (event) => {
+      const categoryTab = event.target.closest?.("[data-filter-tab]");
+      if (categoryTab) {
+        selectFilterTab(categoryTab.dataset.filterTab);
+        return;
       }
-      updateMapMatches();
+
+      const resetButton = event.target.closest?.("#allFilterChip");
+      if (resetButton) {
+        clearAllFilters();
+        return;
+      }
+
+      const filterButton = event.target.closest?.(".filter-chip");
+      if (!filterButton || !applyFilterSelection(filterButton)) return;
+      const invalidatesAiResult = state.matcher.ai.analyzing || Boolean(state.matcher.ai.analysis);
+      if (invalidatesAiResult) {
+        clearAiAnalysisResult();
+        showAiAnalysisMessage(
+          "stale",
+          "Filterauswahl geändert",
+          "Starte die KI-Analyse erneut, damit der beste Ländertipp alle aktuell ausgewählten Filter berücksichtigt.",
+        );
+      }
+      recomputeMatcher();
       refreshMatcherResultViews();
     });
 
-    elements.browserButton.addEventListener("click", () => elements.browser.classList.contains("open") ? closeBrowser() : openBrowser());
-    elements.closeBrowser.addEventListener("click", closeBrowser);
-    document.querySelectorAll(".browser-tab").forEach((tab) => tab.addEventListener("click", () => {
-      document.querySelectorAll(".browser-tab").forEach((item) => {
-        const active = item === tab;
-        item.classList.toggle("active", active);
-        item.setAttribute("aria-selected", String(active));
-      });
-      state.browserGroup = tab.dataset.group;
-      renderBrowser();
-    }));
+    elements.filterDashboard?.addEventListener("keydown", (event) => {
+      const currentTab = event.target.closest?.("[data-filter-tab]");
+      if (!currentTab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      const tabs = Array.from(elements.filterDashboard.querySelectorAll("[data-filter-tab]"));
+      const currentIndex = tabs.indexOf(currentTab);
+      let nextIndex = currentIndex;
+      if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = tabs.length - 1;
+      event.preventDefault();
+      selectFilterTab(tabs[nextIndex].dataset.filterTab, true);
+    });
 
     document.addEventListener("click", (event) => {
       const selector = event.target.closest("[data-select-country]");
@@ -2692,26 +3430,17 @@
       }
       if (event.key === "Escape") {
         if (elements.updateNotice && !elements.updateNotice.hidden) dismissUpdateNotice();
-        else if (!elements.modal.hidden) closeComparison();
-        else closeBrowser();
       }
     });
-
-    elements.compareButton.addEventListener("click", () => openComparison(state.selectedIso));
-    elements.modal.querySelectorAll("[data-close-modal]").forEach((node) => node.addEventListener("click", closeComparison));
-    elements.modal.querySelectorAll("[data-preset]").forEach((button) => button.addEventListener("click", () => setComparisonSelection(button.dataset.preset.split(","))));
   }
 
   drawGraticule();
   drawCountries();
   drawRoadLineOverlays();
   buildSearchIndexes();
-  populateComparisonSelects();
   bindMapControls();
   bindInterface();
   bindMatcher();
   initializeUpdateNotice();
-  renderBrowser();
   updateMapMatches();
-  updateCompareCount();
 })();
