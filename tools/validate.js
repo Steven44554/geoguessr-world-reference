@@ -672,8 +672,10 @@ assert(/@media\s*\([^)]*max-width\s*:[^)]*\)[\s\S]*?(?:\.filter-chip|\.filter-to
 assert(!css.includes("road-badge-base") && !css.includes("road-badge-leader"), "Legacy road badge styles must be removed");
 for (const relativePath of ["style.css", "data/world-map.js", "data/countries.js", "script.js"]) {
   assert(html.includes(relativePath), `index.html does not reference ${relativePath}`);
+  assert(html.includes(`${relativePath}?v=20260816-2`), `index.html must cache-bust ${relativePath} with the current build version`);
   assert(fs.existsSync(path.join(root, relativePath)), `Referenced file missing: ${relativePath}`);
 }
+assert(/<meta\s+name=["']geo-atlas-build["']\s+content=["']20260816-2["']/i.test(html), "index.html must expose the current cache-busting build version");
 
 assert(!/<(?:script|link|img|source|iframe)\b[^>]*(?:src|href)\s*=\s*["']https?:\/\//i.test(html), "index.html must not load external assets");
 assert(/keine manuelle Merkmalsauswahl|zuvor ausgewählte Filter/i.test(html), "Screenshot area must remain AI-only while accepting the external filter context");
@@ -751,6 +753,7 @@ console.log(JSON.stringify({
   selectedCountryFlags: true,
   philippineConcreteSlabs: true,
   versionedUpdateNotice: true,
+  cacheBustedStaticAssets: true,
   pointerCapturedCountrySelection: true,
   neutralInitialCountryPanel: true,
   matcherNetworkUploadsWithoutClick: 0,
