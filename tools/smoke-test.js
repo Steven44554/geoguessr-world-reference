@@ -244,8 +244,8 @@ nodesById.get("resetAiAnalysisButton").disabled = true;
 nodesById.get("aiAnalysisResult").hidden = true;
 nodesById.get("aiHelperStatus").dataset.state = "unknown";
 nodesById.get("updateNotice").hidden = true;
-nodesById.get("updateNotice").dataset.updateId = "2026-08-11-ki-endtipp-filterkontext-v6";
-nodesById.get("updateNotice").dataset.publishedAt = "2026-08-11T17:46:16+02:00";
+nodesById.get("updateNotice").dataset.updateId = "2026-08-16-variable-strassenmarkierungen-v7";
+nodesById.get("updateNotice").dataset.publishedAt = "2026-08-16T19:18:00+02:00";
 const filterDashboardNode = nodesById.get("filterDashboard");
 const filterPanelNode = nodesById.get("filterPanel");
 filterPanelNode.hidden = false;
@@ -305,15 +305,16 @@ nodesById.get("stopOnlyFilterChip").textContent = "STOP: nur STOP";
 nodesById.get("stopOtherFilterChip").textContent = "STOP: anderer Text";
 nodesById.get("whiteEdgeFilterChip").textContent = "Weiße Randlinie";
 nodesById.get("whitePlateFilterChip").textContent = "Weiße Kennzeichen";
-for (const [id, filter, label] of [
-  ["yellowCenterFilterChip", "center:gelb", "Gelbe Mittellinie"],
-  ["whiteCenterFilterChip", "center:weiß", "Weiße Mittellinie"],
-  ["yellowEdgeFilterChip", "edge:gelb", "Gelbe Randlinie"],
+for (const [id, criterion, value, label] of [
+  ["yellowCenterFilterChip", "centerColor", "yellow", "Gelbe Mittellinie"],
+  ["whiteCenterFilterChip", "centerColor", "white", "Weiße Mittellinie"],
+  ["yellowEdgeFilterChip", "edgeColor", "yellow", "Gelbe Randlinie"],
 ]) {
   const chip = nodesById.get(id);
   chip.tagName = "button";
   chip.classList.add("filter-chip");
-  chip.setAttribute("data-filter", filter);
+  chip.setAttribute("data-quick-criterion", criterion);
+  chip.setAttribute("data-quick-value", value);
   chip.setAttribute("aria-pressed", "false");
   chip.textContent = label;
   nodesById.get("filterPanelRoad").appendChild(chip);
@@ -568,7 +569,7 @@ function hasMatcherResultClass(node) {
 const updateNotice = nodesById.get("updateNotice");
 const updateNoticeId = updateNotice.dataset.updateId;
 assert(updateNotice.hidden === false, "A newly published version must reveal the update notice");
-assert(/11\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /17:46/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its current Luxembourg publication date and time");
+assert(/16\. August 2026/.test(nodesById.get("updateNoticeTime").textContent) && /19:18/.test(nodesById.get("updateNoticeTime").textContent), "Update notice must format its current Luxembourg publication date and time");
 document.dispatchEvent({ type: "keydown", key: "Escape" });
 assert(updateNotice.hidden === true, "Escape must dismiss a visible update notice");
 assert(stored.get("geoguessr-atlas-seen-update-id") === updateNoticeId, "Dismissing the update notice must persist the current version ID");
@@ -732,7 +733,11 @@ assertPanelCountry("PHL", "Philippinen");
   const stopOtherChip = nodesById.get("stopOtherFilterChip");
     const whiteEdgeChip = nodesById.get("whiteEdgeFilterChip");
     const whitePlateChip = nodesById.get("whitePlateFilterChip");
-    const mainChips = [stopOnlyChip, stopOtherChip, whiteEdgeChip, whitePlateChip];
+    const lineChips = [
+      nodesById.get("yellowCenterFilterChip"), nodesById.get("whiteCenterFilterChip"),
+      nodesById.get("yellowEdgeFilterChip"), whiteEdgeChip,
+    ];
+    const mainChips = [stopOnlyChip, stopOtherChip, ...lineChips, whitePlateChip];
     const carFeatureChips = [
       nodesById.get("roofRackFilterChip"), nodesById.get("mirrorFilterChip"), nodesById.get("snorkelFilterChip"),
       nodesById.get("equipmentFilterChip"), nodesById.get("tapeFilterChip"),
@@ -756,11 +761,71 @@ assertPanelCountry("PHL", "Philippinen");
     clickFilter(filterId);
     const russiaShape = countryShape("RUS");
     assert(
-      !russiaShape.classList.contains("is-dimmed") && !russiaShape.classList.contains("is-matcher-excluded"),
+      !russiaShape.classList.contains("is-dimmed")
+        && russiaShape.classList.contains("is-matcher-possible")
+        && !russiaShape.classList.contains("is-matcher-excluded"),
       `Russia must remain a possible candidate for ${nodesById.get(filterId).textContent}`,
     );
     clickFilter("allFilterChip");
   }
+
+  clickFilter("yellowCenterFilterChip");
+  clickFilter("whiteCenterFilterChip");
+  assert(
+    !nodesById.get("yellowCenterFilterChip").classList.contains("active")
+      && nodesById.get("whiteCenterFilterChip").classList.contains("active"),
+    "Selecting a white center line must replace the yellow center-line color",
+  );
+  clickFilter("yellowEdgeFilterChip");
+  clickFilter("whiteEdgeFilterChip");
+  assert(
+    !nodesById.get("yellowEdgeFilterChip").classList.contains("active")
+      && nodesById.get("whiteEdgeFilterChip").classList.contains("active"),
+    "Selecting a white edge line must replace the yellow edge-line color",
+  );
+  assert(/^2(?:\D|$)/.test(nodeText(nodesById.get("activeFilterCount"))), "Center and edge colors must count as two independent positions");
+  clickFilter("allFilterChip");
+
+  for (const [filterId, isoCodes] of [
+    ["yellowCenterFilterChip", ["FIN", "URY", "NZL", "IDN", "JPN", "PHL", "ARG", "CHL", "TUR"]],
+    ["whiteCenterFilterChip", ["FIN", "URY", "NZL", "IDN", "JPN", "PHL", "ARG", "CHL", "TUR"]],
+    ["yellowEdgeFilterChip", ["USA", "GRC", "CHL", "TUR"]],
+    ["whiteEdgeFilterChip", ["USA", "GRC", "CHL", "TUR"]],
+  ]) {
+    clickFilter(filterId);
+    for (const iso3 of isoCodes) {
+      const shape = countryShape(iso3);
+      assert(
+        !shape.classList.contains("is-dimmed")
+          && shape.classList.contains("is-matcher-possible")
+          && !shape.classList.contains("is-matcher-excluded"),
+        `${iso3} must remain possible for its documented variable line color`,
+      );
+    }
+    clickFilter("allFilterChip");
+  }
+
+  clickFilter("yellowCenterFilterChip");
+  assert(countryShape("DEU").classList.contains("is-matcher-excluded"), "A sourced stable country must still be excluded by an incompatible line color");
+  clickFilter("leftTrafficFilterChip");
+  assert(countryShape("RUS").classList.contains("is-dimmed"), "An incompatible traffic-side filter must still exclude Russia despite variable road markings");
+  clickFilter("rightTrafficFilterChip");
+  assert(!countryShape("RUS").classList.contains("is-dimmed") && countryShape("RUS").classList.contains("is-matcher-possible"), "A compatible non-road filter must keep Russia possible without upgrading the variable line to a certain match");
+  clickFilter("allFilterChip");
+
+  clickFilter("yellowEdgeFilterChip");
+  clickFilter("yellowCenterFilterChip");
+  assert(countryShape("USA").classList.contains("is-matcher-possible"), "A documented yellow US edge plus its yellow center must remain possible");
+  clickFilter("whiteCenterFilterChip");
+  assert(countryShape("USA").classList.contains("is-matcher-excluded"), "A variable US edge must not neutralize an incompatible center-line color");
+  clickFilter("allFilterChip");
+
+  clickFilter("yellowEdgeFilterChip");
+  clickFilter("stopOnlyFilterChip");
+  assert(countryShape("USA").classList.contains("is-matcher-possible"), "A matching STOP filter must keep the variable US edge possible rather than certain");
+  clickFilter("stopOtherFilterChip");
+  assert(countryShape("USA").classList.contains("is-matcher-excluded"), "An incompatible independent quick filter must still exclude a country with variable road lines");
+  clickFilter("allFilterChip");
 
   clickFilter("leftTrafficFilterChip");
   clickFilter("whiteEdgeFilterChip");
@@ -1199,7 +1264,8 @@ assertPanelCountry("PHL", "Philippinen");
     groupedFilterDashboard: ["Basis", "Straße", "Umgebung", "Objekte", "Kamera"],
     wheelDrivenFilterCategories: ["singleStep", "momentumGuard", "outerBoundaryRelease"],
     additionalGeoGuessrFilters: ["Sprache", "Warnschildform", "Kennzeichenanordnung", "Leitpfosten", "Masten", "Straßenrand", "Kamerahöhe"],
-    russiaVariableRoadLineFilters: ["yellowCenter", "whiteCenter", "yellowEdge", "whiteEdge"],
+    variableRoadLineCountries: ["RUS", "USA", "URY", "NZL", "GRC", "IDN", "JPN", "PHL", "FIN", "ARG", "CHL", "TUR"],
+    variableRoadLinesRemainConjunctive: true,
     filterDashboardKeyboardAndAria: true,
     combinedFilterCountAndSummary: true,
     countryPanelEvidenceSources: true,

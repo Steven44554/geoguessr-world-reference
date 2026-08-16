@@ -55,6 +55,8 @@ Das Filter-Arbeitsfeld bleibt dauerhaft sichtbar und ist in fünf Kategorien auf
 
 Unvereinbare Optionen ersetzen sich automatisch. So können nicht versehentlich Links- und Rechtsverkehr, mehrere Kontinente oder verschiedene Varianten desselben Straßenobjekts gleichzeitig gewählt werden. Landschafts- und Fahrzeugmerkmale bleiben kombinierbar. **„Filter löschen“** entfernt die komplette Auswahl mit einem Klick. Nicht erfasste Objekt- und Kamera-Merkmale gelten weiterhin als unbekannt und nicht automatisch als Gegenbeweis.
 
+Alle vier Farbfilter für Mittel- und Außenlinien werden vorsichtig ausgewertet. Wenn für ein Land positionsbezogen mehrere Farben nach Straßenklasse, Region oder Aufnahmestand erfasst sind, bleibt es bei jeder belegten Variante **möglich**, statt durch das repräsentative Hauptstraßenmuster ausgeschlossen zu werden. Verkehrsseite, Region, Landschaft, Schilder, Kennzeichen, Straßenobjekte und Kamera-Meta wirken trotzdem weiterhin gemeinsam und können das Land unabhängig davon eingrenzen oder ausschließen. Gelbe Park- oder Bordsteinmarkierungen zählen dabei nicht als gelbe Außenlinie.
+
 Neu hinzugekommen sind unter anderem sichtbare Sprachen, gelbe Rauten- und Dreiecksschilder, Kennzeichenanordnungen, Leitpfosten-Muster, Holz- und Betonmasten, Schildrückseiten, verschiedene Straßenränder sowie eine auffällig niedrige Kameraposition. Die Kategorien lassen sich per Klick und Pfeiltasten bedienen. Bleibt der Mauszeiger über dem Filterfeld, wechselt eine einzelne Mausrad- oder Touchpad-Geste automatisch genau eine Kategorie vor oder zurück.
 
 ### Google-Car- und Kamera-Meta

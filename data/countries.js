@@ -1152,11 +1152,6 @@
     "medium",
     "Repräsentatives Muster einer markierten Hauptstraße; Nebenstraßen können ohne Außen- oder Mittellinien auskommen.",
   );
-  countries.RUS.roadLineFilterVariants = {
-    centerColors: ["white", "yellow"],
-    edgeColors: ["white", "yellow"],
-    scope: "Russlands Straßenmarkierungen unterscheiden sich nach Region, Straße und Aufnahmestand; weiße und gelbe Mittel- sowie Randlinien bleiben deshalb mögliche Hinweise.",
-  };
   applyConservativePattern(
     ["PAN", "CRI", "NIC", "HND", "SLV", "GTM", "BLZ", "PRI", "DOM", "HTI", "CUB", "VEN", "GUY", "SUR", "PRY"],
     yellowCenterPattern,
@@ -1435,6 +1430,72 @@
   countries.IDN.licensePlates.description = "Seit 2022 werden neue oder erneuerte Privatplatten weiß mit schwarzer Schrift; ältere schwarze Platten mit weißer Schrift bleiben in Street View häufig.";
   countries.PHL.center = "weiß im aktuellen Grundmuster; gelbe Varianten kommen vor";
   countries.PHL.certainty = "weiße Mitte ist das aktuelle repräsentative Grundmuster; Bildalter und Straßenklasse erzeugen deutliche Varianten";
+
+  function setVariableRoadLineColors(iso3, { centerColors = [], edgeColors = [], scope }) {
+    const country = countries[iso3];
+    if (!country) return;
+    country.roadLineFilterVariants = {
+      centerColors: [...new Set(centerColors)],
+      edgeColors: [...new Set(edgeColors)],
+      policy: "possible",
+      scope,
+    };
+  }
+
+  // Farbfilter dürfen berücksichtigte Varianten nach Straßenklasse, Region oder
+  // Aufnahmestand nicht als Widerspruch behandeln. Nur die tatsächlich belegte
+  // Position wird freigegeben; alle unabhängigen Länderfilter wirken weiterhin.
+  setVariableRoadLineColors("RUS", {
+    centerColors: ["white", "yellow"],
+    edgeColors: ["white", "yellow"],
+    scope: "Russlands Straßenmarkierungen unterscheiden sich nach Region, Straßenklasse und Aufnahmestand; weiße und gelbe Mittel- sowie Randlinien bleiben deshalb mögliche Hinweise.",
+  });
+  setVariableRoadLineColors("USA", {
+    edgeColors: ["white", "yellow"],
+    scope: "In den Vereinigten Staaten kann auf mehrspurigen oder geteilten Fahrbahnen der linke Fahrbahnrand gelb und der rechte weiß sein; im zweispurigen Grundmuster sind die Außenlinien weiß.",
+  });
+  setVariableRoadLineColors("URY", {
+    centerColors: ["white", "yellow"],
+    scope: "Uruguay besitzt neben der weißen Grundmarkierung eine dokumentierte gelb-weiß-gelbe Mittelmarkierung; beide Farben bleiben mögliche Hinweise.",
+  });
+  setVariableRoadLineColors("NZL", {
+    centerColors: ["white", "yellow"],
+    scope: "Neuseeland nutzt weiße Mittellinien im Grundmuster und doppelte gelbe Mittellinien bei Überholverbot; beide Farben bleiben mögliche Hinweise.",
+  });
+  setVariableRoadLineColors("GRC", {
+    edgeColors: ["white", "yellow"],
+    scope: "Griechenlands Randlinien können abhängig von Straße und Funktion weiß oder gelb erscheinen; beide Farben bleiben mögliche Hinweise.",
+  });
+  setVariableRoadLineColors("IDN", {
+    centerColors: ["white", "yellow"],
+    scope: "Indonesische Nationalstraßen können gelbe, Provinz- und Lokalstraßen weiße Mittellinien tragen; beide Farben bleiben mögliche Hinweise.",
+  });
+  setVariableRoadLineColors("JPN", {
+    centerColors: ["white", "yellow"],
+    scope: "Japan nutzt je nach Überholregel und Straßentyp weiße oder gelbe Mittellinien; beide Farben bleiben mögliche Hinweise.",
+  });
+  setVariableRoadLineColors("PHL", {
+    centerColors: ["white", "yellow"],
+    scope: "Auf den Philippinen wechseln weiße und gelbe Mittelmarkierungen nach Straßenklasse, Funktion und Aufnahmestand; beide Farben bleiben mögliche Hinweise.",
+  });
+  setVariableRoadLineColors("FIN", {
+    centerColors: ["white", "yellow"],
+    scope: "Finnlands aktuelle Mittellinien sind weiß; ältere Street-View-Aufnahmen vor der Umstellung können noch gelbe Mittellinien zeigen, weshalb beide Farben möglich bleiben.",
+  });
+  setVariableRoadLineColors("ARG", {
+    centerColors: ["white", "yellow"],
+    scope: "Argentinien nutzt weiße Mittellinien auf normalen zweispurigen Landstraßen und gelbe Gegenverkehrstrennungen auf mehrspurigen oder überholkritischen Abschnitten.",
+  });
+  setVariableRoadLineColors("CHL", {
+    centerColors: ["white", "yellow"],
+    edgeColors: ["white", "yellow"],
+    scope: "Chiles Längsmarkierungen sind gewöhnlich weiß; auf Bergstraßen und in Gebieten mit häufigem Schnee können Mittel- und Außenlinien auch gelb sein.",
+  });
+  setVariableRoadLineColors("TUR", {
+    centerColors: ["white", "yellow"],
+    edgeColors: ["white", "yellow"],
+    scope: "In der Türkei sind Mittel- und Außenlinien normalerweise weiß; auf Straßenabschnitten mit häufigem Nebel können beide Positionen gelb markiert sein.",
+  });
 
   const verifiedStopSigns = {
     USA: {

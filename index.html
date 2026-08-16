@@ -6,8 +6,8 @@
     <meta name="color-scheme" content="dark">
     <meta name="description" content="Lokaler interaktiver GeoGuessr-Länderatlas mit großer Weltkarte und visuellen Länderfiltern.">
     <title>GeoGuessr World Reference Atlas</title>
-    <meta name="geo-atlas-build" content="20260816-3">
-    <link rel="stylesheet" href="style.css?v=20260816-3">
+    <meta name="geo-atlas-build" content="20260816-4">
+    <link rel="stylesheet" href="style.css?v=20260816-4">
   </head>
   <body>
     <header class="app-header">
@@ -63,9 +63,9 @@
               </section>
 
               <section id="filterPanelRoad" class="filter-category-panel" role="tabpanel" aria-labelledby="filterTabRoad" data-filter-panel="road" hidden>
-                <div class="filter-panel-heading"><div><span class="eyebrow">STARKER HINWEIS</span><h3>Fahrbahn und Schilder</h3></div><p>Farben sind je Merkmal exklusiv; verschiedene Merkmale lassen sich kombinieren.</p></div>
+                <div class="filter-panel-heading"><div><span class="eyebrow">STARKER HINWEIS</span><h3>Fahrbahn und Schilder</h3></div><p>Farben sind je Position exklusiv. Bei erfasst wechselnden Markierungen bleibt ein Land möglich; alle anderen Filter wirken weiter.</p></div>
                 <div class="filter-group-grid filter-group-grid-three">
-                  <section class="filter-group" role="group" aria-labelledby="roadLineFilterGroupTitle"><div class="filter-group-heading"><h4 id="roadLineFilterGroupTitle">Straßenlinien</h4><span>pro Linie eine Farbe</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-filter="center:gelb" aria-pressed="false">Gelbe Mittellinie</button><button class="filter-chip" type="button" data-filter="center:weiß" aria-pressed="false">Weiße Mittellinie</button><button class="filter-chip" type="button" data-filter="edge:gelb" aria-pressed="false">Gelbe Randlinie</button><button id="whiteEdgeFilterChip" class="filter-chip" type="button" data-matcher-edge-white aria-pressed="false">Weiße Randlinie</button></div></section>
+                  <section class="filter-group" role="group" aria-labelledby="roadLineFilterGroupTitle"><div class="filter-group-heading"><h4 id="roadLineFilterGroupTitle">Straßenlinien</h4><span>pro Mittel-/Außenlinie eine Farbe</span></div><div class="filter-chip-list"><button id="yellowCenterFilterChip" class="filter-chip" type="button" data-quick-criterion="centerColor" data-quick-value="yellow" aria-pressed="false">Gelbe Mittellinie</button><button id="whiteCenterFilterChip" class="filter-chip" type="button" data-quick-criterion="centerColor" data-quick-value="white" aria-pressed="false">Weiße Mittellinie</button><button id="yellowEdgeFilterChip" class="filter-chip" type="button" data-quick-criterion="edgeColor" data-quick-value="yellow" aria-pressed="false" aria-label="Gelbe Außenlinie am Fahrbahnrand">Gelbe Randlinie</button><button id="whiteEdgeFilterChip" class="filter-chip" type="button" data-matcher-edge-white aria-pressed="false" aria-label="Weiße Außenlinie am Fahrbahnrand">Weiße Randlinie</button></div></section>
                   <section class="filter-group" role="group" aria-labelledby="plateFilterGroupTitle"><div class="filter-group-heading"><h4 id="plateFilterGroupTitle">Kennzeichen</h4><span>Farbe oder Anordnung</span></div><div class="filter-chip-list"><button class="filter-chip" type="button" data-filter="plates:gelb" aria-pressed="false">Gelbe Kennzeichen</button><button id="whitePlateFilterChip" class="filter-chip" type="button" data-matcher-plate-white aria-pressed="false">Weiße Kennzeichen</button><button class="filter-chip" type="button" data-quick-criterion="plateLayout" data-quick-value="white-yellow" aria-pressed="false">Vorn weiß, hinten gelb</button><button class="filter-chip" type="button" data-quick-criterion="plateLayout" data-quick-value="yellow-yellow" aria-pressed="false">Beide gelb</button></div></section>
                   <section class="filter-group" role="group" aria-labelledby="stopFilterGroupTitle"><div class="filter-group-heading"><h4 id="stopFilterGroupTitle">Schilder</h4><span>je Typ eine Option</span></div><div class="filter-chip-list"><button id="stopOnlyFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-only aria-pressed="false" aria-label="Filter: Stoppschild zeigt ausschließlich STOP und keine weitere Sprache"><span>STOP: nur STOP</span></button><button id="stopOtherFilterChip" class="filter-chip stop-filter-chip" type="button" data-matcher-stop-other aria-pressed="false" aria-label="Filter: Stoppschild zeigt einen anderen oder zusätzlichen Text"><span>STOP: anderer Text</span></button><button class="filter-chip" type="button" data-quick-criterion="warningSign" data-quick-value="diamond-yellow" aria-pressed="false">Gelbes Rautenschild</button><button class="filter-chip" type="button" data-quick-criterion="warningSign" data-quick-value="triangle-white" aria-pressed="false">Weißes Warndreieck</button><button class="filter-chip" type="button" data-quick-criterion="warningSign" data-quick-value="triangle-yellow" aria-pressed="false">Gelbes Warndreieck</button></div></section>
                 </div>
@@ -197,20 +197,20 @@
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      data-update-id="2026-08-11-ki-endtipp-filterkontext-v6"
-      data-published-at="2026-08-11T17:46:16+02:00"
+      data-update-id="2026-08-16-variable-strassenmarkierungen-v7"
+      data-published-at="2026-08-16T19:18:00+02:00"
       hidden
     >
       <button id="dismissUpdateNotice" class="update-notice-button" type="button" aria-label="Update-Hinweis schließen">
         <span class="update-notice-heading"><strong id="updateNoticeHeading">Website aktualisiert</strong><span aria-hidden="true">×</span></span>
-        <span id="updateNoticeText" class="update-notice-text">Neu: Die KI nennt bei jeder erfolgreichen Screenshot-Analyse genau einen besten Ländertipp – auch bei Unsicherheit – und berücksichtigt dabei deine zuvor ausgewählten Filter.</span>
-        <time id="updateNoticeTime" datetime="2026-08-11T17:46:16+02:00">11. August 2026 · 17:46 Uhr</time>
+        <span id="updateNoticeText" class="update-notice-text">Neu: Länder mit erfasst wechselnden Straßenmarkierungen bleiben bei allen belegten Mittel- und Außenlinienfarben möglich. Andere Filter wirken weiterhin.</span>
+        <time id="updateNoticeTime" datetime="2026-08-16T19:18:00+02:00">16. August 2026 · 19:18 Uhr</time>
         <span class="update-notice-dismiss">Zum Schließen hier klicken</span>
       </button>
     </aside>
 
-    <script src="data/world-map.js?v=20260816-3"></script>
-    <script src="data/countries.js?v=20260816-3"></script>
-    <script src="script.js?v=20260816-3"></script>
+    <script src="data/world-map.js?v=20260816-4"></script>
+    <script src="data/countries.js?v=20260816-4"></script>
+    <script src="script.js?v=20260816-4"></script>
   </body>
 </html>

@@ -231,12 +231,51 @@ assert(COUNTRIES.IDN.roadMapPattern.scope === "road-class", "Indonesia's yellow 
 assert(COUNTRIES.PHL.roadMapPattern.center.color === "white", "Philippines' current representative base pattern must use a white center");
 assert(COUNTRIES.PHL.roadStyles.length >= 2 && COUNTRIES.PHL.roadStyles.every((style) => style.surface === "concrete" && style.surfaceDetail === "concrete-slabs"), "Philippine road diagrams must retain concrete slab surfaces and joints");
 assert(COUNTRIES.RUS.iso2 === "RU" && COUNTRIES.PHL.iso2 === "PH", "Russia and the Philippines must have local flag asset codes");
-assert(
-  ["white", "yellow"].every((color) => COUNTRIES.RUS.roadLineFilterVariants?.centerColors?.includes(color)
-    && COUNTRIES.RUS.roadLineFilterVariants?.edgeColors?.includes(color)),
-  "Russia must remain eligible for white and yellow center-line and edge-line filters",
-);
-assert(/Region|Straße|Aufnahmestand/i.test(COUNTRIES.RUS.roadLineFilterVariants?.scope || ""), "Russia's variable road-line filter behavior must explain its regional scope");
+const expectedVariableRoadLineColors = {
+  RUS: { centerColors: ["white", "yellow"], edgeColors: ["white", "yellow"] },
+  USA: { edgeColors: ["white", "yellow"] },
+  URY: { centerColors: ["white", "yellow"] },
+  NZL: { centerColors: ["white", "yellow"] },
+  GRC: { edgeColors: ["white", "yellow"] },
+  IDN: { centerColors: ["white", "yellow"] },
+  JPN: { centerColors: ["white", "yellow"] },
+  PHL: { centerColors: ["white", "yellow"] },
+  FIN: { centerColors: ["white", "yellow"] },
+  ARG: { centerColors: ["white", "yellow"] },
+  CHL: { centerColors: ["white", "yellow"], edgeColors: ["white", "yellow"] },
+  TUR: { centerColors: ["white", "yellow"], edgeColors: ["white", "yellow"] },
+};
+for (const [iso3, expected] of Object.entries(expectedVariableRoadLineColors)) {
+  const profile = COUNTRIES[iso3].roadLineFilterVariants;
+  assert(profile?.policy === "possible", `${iso3} must treat documented road-line variants as possible rather than certain or excluded`);
+  assert(typeof profile.scope === "string" && profile.scope.length >= 60, `${iso3} must explain why its road-line colors vary`);
+  for (const [position, colors] of Object.entries(expected)) {
+    assert(
+      colors.every((color) => profile[position]?.includes(color)) && new Set(profile[position]).size === profile[position].length,
+      `${iso3} must expose every documented ${position} variant exactly once`,
+    );
+  }
+}
+const structuredLineColor = (value) => {
+  const text = String(value || "").toLocaleLowerCase("de");
+  if (text.includes("gelb")) return "yellow";
+  if (text.includes("weiß") || text.includes("weiss")) return "white";
+  return "";
+};
+for (const country of records) {
+  const centerColors = new Set((country.roadStyles || []).map((style) => structuredLineColor(style.centerColor)).filter(Boolean));
+  const edgeColors = new Set((country.roadStyles || []).flatMap((style) => [
+    structuredLineColor(style.leftEdgeColor),
+    structuredLineColor(style.rightEdgeColor),
+  ]).filter(Boolean));
+  if (centerColors.size > 1) {
+    assert([...centerColors].every((color) => country.roadLineFilterVariants?.centerColors?.includes(color)), `${country.iso3} must not lose a structured center-line color variant in filtering`);
+  }
+  if (edgeColors.size > 1) {
+    assert([...edgeColors].every((color) => country.roadLineFilterVariants?.edgeColors?.includes(color)), `${country.iso3} must not lose a structured edge-line color variant in filtering`);
+  }
+}
+assert(/Region|Straßenklasse|Aufnahmestand/i.test(COUNTRIES.RUS.roadLineFilterVariants?.scope || ""), "Russia's variable road-line filter behavior must explain its regional or road-class scope");
 assert(COUNTRIES.NOR.iso2 === "NO" && COUNTRIES.FRA.iso2 === "FR" && COUNTRIES.TWN.iso2 === "TW" && COUNTRIES.KOS.iso2 === "XK", "Known Natural Earth flag-code gaps must be normalized");
 assert(COUNTRIES.NZL.roadMapPattern.center.color === "white" && COUNTRIES.NZL.roadMapPattern.center.style === "dashed", "New Zealand's map must use its normal white dashed center line");
 assert(COUNTRIES.NZL.roadStyles.some((style) => style.centerColor === "gelb" && /double|doppelt/.test(style.centerStyle)), "New Zealand must retain its double-yellow no-passing variant in the panel");
@@ -337,7 +376,7 @@ assert(/\bselectedIso\s*:\s*null\b/.test(script), "Application state must start 
 assert(!/\bselectCountry\s*\(\s*["']ZAF["']\s*,\s*false\s*,\s*false\s*\)\s*;/.test(script), "South Africa must not be selected during application startup");
 const screenshotAnalysisIds = [
   "matcherButton", "roadMatcher", "roadScreenshot", "matcherPreview", "matcherPreviewImage", "removeScreenshot",
-  "stopOnlyFilterChip", "stopOtherFilterChip", "whiteEdgeFilterChip", "whitePlateFilterChip",
+  "stopOnlyFilterChip", "stopOtherFilterChip", "yellowCenterFilterChip", "whiteCenterFilterChip", "yellowEdgeFilterChip", "whiteEdgeFilterChip", "whitePlateFilterChip",
 ];
 for (const id of screenshotAnalysisIds) {
   const occurrences = html.match(new RegExp(`id=["']${id}["']`, "g")) || [];
@@ -370,14 +409,13 @@ for (const id of updateNoticeIds) {
 }
 const updateNoticeMarkup = html.match(/<aside\b[^>]*id=["']updateNotice["'][^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
 assert(/role=["']status["']/i.test(updateNoticeMarkup) && /aria-live=["']polite["']/i.test(updateNoticeMarkup) && /aria-atomic=["']true["']/i.test(updateNoticeMarkup), "Update notice needs an accessible polite live region");
-assert(/data-update-id=["']2026-08-11-ki-endtipp-filterkontext-v6["']/i.test(updateNoticeMarkup), "Update notice needs the current AI best-guess version identifier");
-assert(/data-published-at=["']2026-08-11T17:46:16\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs the current AI best-guess publication timestamp");
+assert(/data-update-id=["']2026-08-16-variable-strassenmarkierungen-v7["']/i.test(updateNoticeMarkup), "Update notice needs the current variable-road-marking version identifier");
+assert(/data-published-at=["']2026-08-16T19:18:00\+02:00["']/i.test(updateNoticeMarkup), "Update notice needs the current variable-road-marking publication timestamp");
 assert(/<button\b[^>]*id=["']dismissUpdateNotice["']/i.test(updateNoticeMarkup), "The complete update notice must be dismissible with a real button");
-assert(/11\. August 2026[^<]*17:46 Uhr/i.test(updateNoticeMarkup), "Update notice must show the current publication date and time without JavaScript");
+assert(/16\. August 2026[^<]*19:18 Uhr/i.test(updateNoticeMarkup), "Update notice must show the current publication date and time without JavaScript");
 const updateNoticeText = updateNoticeMarkup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-assert(/genau einen besten Ländertipp/i.test(updateNoticeText), "Update notice must announce the mandatory single-country best guess");
-assert(/auch bei Unsicherheit/i.test(updateNoticeText), "Update notice must keep low-confidence guesses visibly uncertain");
-assert(/zuvor ausgewählten Filter/i.test(updateNoticeText), "Update notice must announce that prior filters are supplied to the AI");
+assert(/wechselnden Straßenmarkierungen/i.test(updateNoticeText), "Update notice must explain the conservative variable-road-marking behavior");
+assert(/Andere Filter wirken weiterhin/i.test(updateNoticeText), "Update notice must explain that independent filters remain active");
 assert(/Straßen-Screenshot als Gesamtbild auswerten/.test(html), "AI screenshot area needs a visible whole-image heading");
 assert(/Straße[^<]*Vegetation[^<]*Schilder[^<]*Kennzeichen[^<]*Landschaft/i.test(html)
   || /Gesamtbild[^<]{0,180}(?:Screenshot|Filter)|Screenshot[^<]{0,180}(?:Gesamtbild|gemeinsam)/i.test(html), "AI screenshot area must visibly promise whole-image analysis");
@@ -469,7 +507,7 @@ assert(filterGroupMarkups.length === 12, `Filter dashboard must expose twelve fo
 const expectedFilterGroups = [
   { name: /^Verkehrsseite$/i, label: "Verkehrsseite", patterns: [/traffic:left/i, /traffic:right/i] },
   { name: /^Weltregion$/i, label: "Weltregion", patterns: [/continent:Europa/i, /continent:Afrika/i, /continent:Asien/i, /continent:Nordamerika/i, /continent:Südamerika/i, /continent:Ozeanien/i] },
-  { name: /^Straßenlinien$/i, label: "Straßenlinien", ids: ["whiteEdgeFilterChip"] },
+  { name: /^Straßenlinien$/i, label: "Straßenlinien", ids: ["yellowCenterFilterChip", "whiteCenterFilterChip", "yellowEdgeFilterChip", "whiteEdgeFilterChip"] },
   { name: /^Kennzeichen$/i, label: "Kennzeichen", ids: ["whitePlateFilterChip"], patterns: [/plateLayout/i] },
   { name: /^Schilder$/i, label: "Schilder", ids: ["stopOnlyFilterChip", "stopOtherFilterChip"], patterns: [/warningSign/i] },
   { name: /^Landschaft$/i, label: "Landschaft", patterns: [/terrain:trop/i, /terrain:wüste/i, /terrain:berg/i, /terrain:flach/i, /terrain:wald/i, /terrain:insel/i] },
@@ -516,6 +554,17 @@ for (const [id, dataAttribute, labelPattern] of [
   assert(!/\bdata-filter\s*=/i.test(markup), `${id} must not enter the generic country-filter handler`);
   assert(!/\baria-controls\s*=/i.test(markup), `${id} must not reference a removed screenshot control`);
   assert(/\baria-pressed=["']false["']/i.test(markup), `${id} must expose its initial toggle state`);
+  assert(labelPattern.test(markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()), `${id} needs its expected visible German label`);
+}
+for (const [id, criterion, value, labelPattern] of [
+  ["yellowCenterFilterChip", "centerColor", "yellow", /Gelbe Mittellinie/i],
+  ["whiteCenterFilterChip", "centerColor", "white", /Weiße Mittellinie/i],
+  ["yellowEdgeFilterChip", "edgeColor", "yellow", /Gelbe Randlinie/i],
+]) {
+  const markup = html.match(new RegExp(`<button\\b[^>]*id=["']${id}["'][^>]*>[\\s\\S]*?<\\/button>`, "i"))?.[0] || "";
+  assert(new RegExp(`data-quick-criterion=["']${criterion}["']`, "i").test(markup), `${id} must use the conservative road matcher`);
+  assert(new RegExp(`data-quick-value=["']${value}["']`, "i").test(markup), `${id} must provide its normalized matcher color`);
+  assert(!/\bdata-filter\s*=/i.test(markup), `${id} must not use the old hard-exclusion filter path`);
   assert(labelPattern.test(markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()), `${id} needs its expected visible German label`);
 }
 const visibleHtmlText = html
@@ -676,10 +725,10 @@ assert(/@media\s*\([^)]*max-width\s*:[^)]*\)[\s\S]*?(?:\.filter-chip|\.filter-to
 assert(!css.includes("road-badge-base") && !css.includes("road-badge-leader"), "Legacy road badge styles must be removed");
 for (const relativePath of ["style.css", "data/world-map.js", "data/countries.js", "script.js"]) {
   assert(html.includes(relativePath), `index.html does not reference ${relativePath}`);
-  assert(html.includes(`${relativePath}?v=20260816-3`), `index.html must cache-bust ${relativePath} with the current build version`);
+  assert(html.includes(`${relativePath}?v=20260816-4`), `index.html must cache-bust ${relativePath} with the current build version`);
   assert(fs.existsSync(path.join(root, relativePath)), `Referenced file missing: ${relativePath}`);
 }
-assert(/<meta\s+name=["']geo-atlas-build["']\s+content=["']20260816-3["']/i.test(html), "index.html must expose the current cache-busting build version");
+assert(/<meta\s+name=["']geo-atlas-build["']\s+content=["']20260816-4["']/i.test(html), "index.html must expose the current cache-busting build version");
 
 assert(!/<(?:script|link|img|source|iframe)\b[^>]*(?:src|href)\s*=\s*["']https?:\/\//i.test(html), "index.html must not load external assets");
 assert(/keine manuelle Merkmalsauswahl|zuvor ausgewählte Filter/i.test(html), "Screenshot area must remain AI-only while accepting the external filter context");
@@ -723,6 +772,7 @@ console.log(JSON.stringify({
   roadMapPatterns: mappedPatterns.length,
   crossCheckedRoadPatterns: crossCheckedPatterns.length,
   partiallyCheckedRoadPatterns: partialPatterns.length,
+  variableRoadLineCountries: Object.keys(expectedVariableRoadLineColors),
   visualEvidenceProfiles,
   sourceBackedVisualProfiles,
   captureMetaCountries,

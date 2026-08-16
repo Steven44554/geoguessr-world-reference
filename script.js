@@ -179,6 +179,7 @@
     return {
       stopOnly: false,
       stopOther: false,
+      centerColor: "",
       edgeColor: "",
       plateColor: "",
       roofRack: false,
@@ -763,6 +764,7 @@
         country.traffic === "left" ? "Linksverkehr linke Fahrseite" : "Rechtsverkehr rechte Fahrseite",
         country.domain,
         JSON.stringify(country.roadMarkings),
+        JSON.stringify(country.roadLineFilterVariants),
         JSON.stringify(country.roadMapPattern),
         JSON.stringify(country.roads),
         JSON.stringify(country.geoGuessrClues),
@@ -946,7 +948,7 @@
     const quick = state.matcher.quickCriteria;
     return {
       traffic: "",
-      centerColor: "",
+      centerColor: quick.centerColor,
       centerStyle: "",
       edgeColor: quick.edgeColor,
       edgeStyle: "",
@@ -989,7 +991,8 @@
     const quick = state.matcher.quickCriteria;
     if (quick.stopOnly) add("stopSign", "stop-only");
     if (quick.stopOther) add("stopSign", "other-text");
-    if (quick.edgeColor === "white") add("edgeColor", "white");
+    if (quick.centerColor) add("centerColor", quick.centerColor);
+    if (quick.edgeColor) add("edgeColor", quick.edgeColor);
     if (quick.plateColor === "white") add("plateColor", "white");
     if (quick.roofRack) add("vehicleFeature", "roof-rack");
     if (quick.mirrors) add("vehicleFeature", "mirrors");
@@ -1177,6 +1180,8 @@
     const quickCriterion = button.dataset.quickCriterion;
     const quickValue = button.dataset.quickValue;
     if (quickCriterion && Object.hasOwn(quick, quickCriterion) && quickValue) {
+      if (quickCriterion === "centerColor") removeBaseFiltersByType("center");
+      if (quickCriterion === "edgeColor") removeBaseFiltersByType("edge");
       quick[quickCriterion] = quick[quickCriterion] === quickValue ? "" : quickValue;
       return true;
     }
@@ -1614,19 +1619,38 @@
     const count = roadCriteriaCount(criteria);
     if (!count) return null;
     const variableLines = country.roadLineFilterVariants;
-    const variableColorMatch = variableLines
-      && !criteria.centerStyle
-      && !criteria.edgeStyle
-      && !criteria.surface
-      && (!criteria.centerColor || variableLines.centerColors?.includes(criteria.centerColor))
-      && (!criteria.edgeColor || variableLines.edgeColors?.includes(criteria.edgeColor));
-    if (variableColorMatch) return { outcome: "match", count, reliable: false };
+    const variableCenterColor = Boolean(
+      variableLines?.policy === "possible"
+        && criteria.centerColor
+        && variableLines.centerColors?.includes(criteria.centerColor),
+    );
+    const variableEdgeColor = Boolean(
+      variableLines?.policy === "possible"
+        && criteria.edgeColor
+        && variableLines.edgeColors?.includes(criteria.edgeColor),
+    );
+    const variableColorMatch = variableCenterColor || variableEdgeColor;
     const variants = countryRoadVariants(country);
     if (!variants.length) return { outcome: "unknown", count, reliable: false };
-    const comparisons = variants.map((variant) => compareRoadVariant(variant, criteria));
+    const comparedCriteria = variableColorMatch
+      ? {
+        ...criteria,
+        centerColor: variableCenterColor ? "" : criteria.centerColor,
+        centerStyle: variableCenterColor ? "" : criteria.centerStyle,
+        edgeColor: variableEdgeColor ? "" : criteria.edgeColor,
+        edgeStyle: variableEdgeColor ? "" : criteria.edgeStyle,
+      }
+      : criteria;
+    if (variableColorMatch && !roadCriteriaCount(comparedCriteria)) {
+      return { outcome: "possible", count, reliable: false, variable: true };
+    }
+    const comparisons = variants.map((variant) => compareRoadVariant(variant, comparedCriteria));
     const matched = comparisons.includes("match");
     const crossChecked = country.roadVerification?.status === "cross-checked";
     const reliable = crossChecked || (matched && country.detailLevel === "priorität" && country.roadVerification?.status === "partial");
+    if (variableColorMatch && (matched || comparisons.includes("unknown"))) {
+      return { outcome: "possible", count, reliable: false, variable: true };
+    }
     if (matched) return { outcome: "match", count, reliable };
     if (comparisons.includes("unknown")) return { outcome: "unknown", count, reliable: false };
     return { outcome: "mismatch", count, reliable: crossChecked };
@@ -1691,7 +1715,10 @@
 
     const roadResult = evaluateRoadCriteria(country, criteria);
     if (!excludedReason && roadResult) {
-      if (roadResult.outcome === "match") {
+      if (roadResult.outcome === "possible") {
+        uncertain = true;
+        reasons.push("Straßenmarkierung variiert nach Straßentyp, Region oder Aufnahmestand");
+      } else if (roadResult.outcome === "match") {
         roadMatched = true;
         score += roadResult.count * 14 + (roadResult.reliable ? 12 : 2);
         if (roadResult.reliable) reliableMatches += roadResult.count;
